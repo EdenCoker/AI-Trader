@@ -1,0 +1,33 @@
+name: Build Loop
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    inputs:
+      max_proposals:
+        type: number
+        default: 2
+
+jobs:
+  build-loop:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[llm,rag,data,dev]"
+      - run: ai-trader build-loop run --max-proposals "${{ github.event.inputs.max_proposals || 2 }}"
+        env:
+          AI_TRADER_LLM_BACKEND: openai_compatible
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          POLYGON_API_KEY: ${{ secrets.POLYGON_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

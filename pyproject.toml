@@ -1,0 +1,75 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ai-trader"
+version = "0.1.0"
+description = "Public-data smart-money and narrative signal research framework."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pydantic>=2.7",
+    "python-dotenv>=1.0",
+    "rich>=13.7",
+    "tenacity>=8.2",
+    "typer>=0.12",
+]
+
+[project.scripts]
+ai-trader = "ai_trader.cli:app"
+
+[project.optional-dependencies]
+broker = [
+    "ib_insync>=0.9.86",
+]
+bridge = [
+    "posix-ipc>=1.1",
+]
+rag = [
+    "sentence-transformers>=3.0",
+]
+data = [
+    "fredapi>=0.5",
+    "polygon-api-client>=1.14",
+    "praw>=7.7",
+    "pyarrow>=15.0",
+    "sec-edgar-api>=1.0",
+    "tweepy>=4.14",
+]
+llm = [
+    "langchain-core>=1.0",
+    "openai>=1.30",
+    "tiktoken>=0.7",
+]
+vector = [
+    "faiss-cpu>=1.8",
+    "psycopg[binary]>=3.1",
+    "sentence-transformers>=3.0",
+    "sqlalchemy>=2.0",
+]
+dev = [
+    "mypy>=1.10",
+    "pytest>=8.2",
+    "pytest-cov>=5.0",
+    "pytest-json-report>=1.5",
+    "respx>=0.21",
+    "ruff>=0.5",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ai_trader"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

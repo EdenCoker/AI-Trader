@@ -1,0 +1,43 @@
+{
+  "ticker": "MSFT",
+  "as_of": "2026-04-30",
+  "signals": [
+    {
+      "name": "smart_money.congressional_trade",
+      "ticker": "MSFT",
+      "direction": "long",
+      "strength": 0.72,
+      "confidence": 0.58,
+      "effective_date": "2026-04-30",
+      "horizon_days": 60,
+      "reasons": [
+        "STOCK Act disclosure became public on 2026-04-30",
+        "Purchase disclosed by a relevant committee member"
+      ],
+      "metadata": {
+        "source": "quiver",
+        "note": "Example data only"
+      }
+    },
+    {
+      "name": "smart_money.13f_change",
+      "ticker": "MSFT",
+      "direction": "long",
+      "strength": 0.46,
+      "confidence": 0.55,
+      "effective_date": "2026-04-15",
+      "horizon_days": 90,
+      "reasons": [
+        "13F filing became public on 2026-04-15",
+        "Position increased vs previous filing"
+      ],
+      "metadata": {
+        "manager": "Example Manager"
+      }
+    }
+  ],
+  "metadata": {
+    "note": "This file is a runnable example for ai-trader reason."
+  }
+}
+
