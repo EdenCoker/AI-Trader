@@ -152,10 +152,30 @@ ai-trader status
 ai-trader analyze-news --ticker MSFT --headline "Earnings beat" --body-file .\examples\sample_news.txt
 ai-trader reason --bundle-file .\examples\sample_signal_bundle.json
 ai-trader ibkr-positions
-ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --out result.json
+ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --events-file .\examples\sample_events.jsonl --out result.json
 ai-trader backtest monte-carlo --result-file result.json --n-sims 10000
 ai-trader review-nightly --outcomes-file outcomes.jsonl
 ```
+
+## Historical Event Replay
+
+Backtests can consume look-ahead-safe smart-money events from JSONL:
+
+```powershell
+ai-trader backtest run `
+  --tickers MSFT `
+  --start 2022-01-01 `
+  --end 2022-12-31 `
+  --events-file .\examples\sample_events.jsonl `
+  --out result.json
+```
+
+Each line in the event file is one `ReplayEvent`. Supported `event_type` values:
+
+- `congressional_trade`: contains a `congressional_trade` payload matching the `CongressionalTrade` model. Its usable date is `disclosure_date`.
+- `13f_change`: contains a `thirteen_f_change` payload matching the `ThirteenFPositionChange` model. Its usable date is `current.filing_date`.
+
+The replay loader only exposes events with `effective_date <= current_replay_date`. This is the core no-look-ahead guard for backtests.
 
 ## C++ Bridge
 
@@ -189,4 +209,3 @@ ai-trader build-loop run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 
 ```
 
 The workflow file `.github/workflows/build_loop.yml` runs the same cycle nightly in GitHub Actions.
-

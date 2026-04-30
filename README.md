@@ -39,7 +39,7 @@ ai-trader analyze-news --ticker AAPL --headline "..." --body-file .\\news.txt
 ai-trader ibkr-positions
 ai-trader reason --bundle-file .\\examples\\sample_signal_bundle.json
 ai-trader rag-index
-ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --out result.json
+ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --events-file .\\examples\\sample_events.jsonl --out result.json
 ai-trader backtest monte-carlo --result-file result.json --n-sims 10000
 ai-trader review-nightly --outcomes-file outcomes.jsonl
 ```

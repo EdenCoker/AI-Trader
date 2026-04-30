@@ -197,6 +197,9 @@ def backtest_run(
     start: str = typer.Option(..., help="Start date YYYY-MM-DD"),
     end: str = typer.Option(..., help="End date YYYY-MM-DD"),
     out: Path | None = typer.Option(None, help="Output result JSON path"),
+    events_file: Path | None = typer.Option(
+        None, exists=True, readable=True, help="Optional smart-money replay events JSONL"
+    ),
     train_window_days: int = typer.Option(252),
     test_window_days: int = typer.Option(63),
     step_days: int = typer.Option(21),
@@ -210,6 +213,7 @@ def backtest_run(
         test_window_days=test_window_days,
         step_days=step_days,
         anchored=anchored,
+        events_file=events_file,
     )
     result = WalkForwardEngine().run(
         list(tickers),
