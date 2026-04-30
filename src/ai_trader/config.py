@@ -120,6 +120,14 @@ class AppSettings(BaseModel):
     openai_embedding_model: str = Field(
         default_factory=lambda: _env("AI_TRADER_OPENAI_EMBEDDING_MODEL", "text-embedding-3-small") or ""
     )
+    local_training_enabled: bool = Field(
+        default_factory=lambda: _env_bool("AI_TRADER_LOCAL_TRAINING_ENABLED", default=False)
+    )
+    local_calibrator_path: Path = Field(
+        default_factory=lambda: Path(
+            _env("AI_TRADER_LOCAL_CALIBRATOR_PATH", "data/models/local_calibrator.json") or ""
+        )
+    )
 
     ibkr_host: str = Field(default_factory=lambda: _env("IBKR_HOST", "127.0.0.1") or "127.0.0.1")
     ibkr_port: int = Field(default_factory=lambda: _env_int("IBKR_PORT", 7497))

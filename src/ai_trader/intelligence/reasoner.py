@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import date
 
 from langchain_core.output_parsers import PydanticOutputParser
@@ -15,6 +16,7 @@ from ai_trader.llm import get_llm_client
 from ai_trader.llm.contracts import LLMClient
 from ai_trader.llm.errors import LLMError
 from ai_trader.rag.trader_rag import TraderRAG, format_retrieved, get_trader_rag
+from ai_trader.training.calibrator import LocalCalibratorModel
 
 
 SYSTEM_PROMPT = (
@@ -23,6 +25,7 @@ SYSTEM_PROMPT = (
     "Be conservative when inputs disagree or are stale. "
     "Return only the requested JSON."
 )
+logger = logging.getLogger(__name__)
 
 
 class FinalReasoner:
@@ -36,12 +39,16 @@ class FinalReasoner:
         model: str | None = None,
         rag: TraderRAG | None = None,
         guardrails: ReasoningGuardrails | None = None,
+        calibrator: LocalCalibratorModel | None = None,
     ) -> None:
         self._settings = settings or get_settings()
         self._llm = llm or get_llm_client(self._settings)
         self._model = model or self._settings.llm_model
         self._rag = rag
         self._guardrails = guardrails or ReasoningGuardrails()
+        self._calibrator = (
+            calibrator if calibrator is not None else _load_local_calibrator(self._settings)
+        )
 
     def reason(
         self,
@@ -100,7 +107,10 @@ class FinalReasoner:
             )
         )
         plan = _parse(parser, text)
-        return self._guardrails.apply(plan=plan, bundle=bundle, narrative=narrative)
+        guarded = self._guardrails.apply(plan=plan, bundle=bundle, narrative=narrative)
+        if self._calibrator is None:
+            return guarded
+        return self._calibrator.apply(plan=guarded, bundle=bundle, narrative=narrative)
 
     def _invoke(self, prompt: str) -> str:
         try:
@@ -153,3 +163,17 @@ def _extract_first_json_object(text: str) -> str | None:
                     return None
                 return candidate
     return None
+
+
+def _load_local_calibrator(settings: AppSettings) -> LocalCalibratorModel | None:
+    if not settings.local_training_enabled:
+        return None
+    path = settings.local_calibrator_path
+    if not path.exists():
+        logger.warning("local training enabled but calibrator does not exist: %s", path)
+        return None
+    try:
+        return LocalCalibratorModel.load(path)
+    except Exception as exc:
+        logger.warning("failed to load local calibrator from %s: %s", path, exc)
+        return None

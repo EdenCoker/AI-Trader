@@ -45,7 +45,7 @@ class PolygonDataLoader:
         )
         params = {"adjusted": "true", "sort": "asc", "limit": 50000, "apiKey": api_key.get_secret_value()}
         for attempt in Retrying(
-            stop=stop_after_attempt(5),
+            stop=stop_after_attempt(7),
             wait=wait_fixed(max(12, int(60 / max(self._settings.polygon_rate_limit_rpm, 1)))),
             retry=retry_if_exception_type(httpx.HTTPError),
             reraise=True,

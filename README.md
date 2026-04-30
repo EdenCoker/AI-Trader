@@ -13,6 +13,7 @@ This repository currently implements the core research spine:
 - an IBKR (TWS/IB Gateway) broker adapter for positions/orders
 - a reflexivity psychology state machine and social velocity signal
 - a trader RAG memory feeding the Final Reasoner
+- local training from closed trade outcomes to calibrate conviction and sizing
 - self-improvement proposals gated by tests, backtests, safety filters, and human PR review
 - a POSIX shared-memory bridge protocol for C++ AlphaEngine integration
 - walk-forward backtesting, metrics, and stress Monte Carlo
@@ -25,7 +26,7 @@ The system is designed for lawful use of public disclosures. It is a research fr
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev,broker,llm,rag,data]"
-Copy-Item .env.example .env
+# Create a repo-root .env file with the settings in docs/HOW_TO_RUN.md
 python -m pytest
 ```
 
@@ -38,6 +39,7 @@ ai-trader status
 ai-trader analyze-news --ticker AAPL --headline "..." --body-file .\\news.txt
 ai-trader ibkr-positions
 ai-trader reason --bundle-file .\\examples\\sample_signal_bundle.json
+ai-trader train local --examples-file .\\examples\\sample_training_examples.jsonl --model-out data\\models\\local_calibrator.json
 ai-trader rag-index
 ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --events-file .\\examples\\sample_events.jsonl --out result.json
 ai-trader backtest monte-carlo --result-file result.json --n-sims 10000
@@ -97,6 +99,23 @@ ai-trader rag-query --query "late-cycle euphoria breaks and liquidity tightens" 
 $env:AI_TRADER_RAG_ENABLED="true"
 ai-trader reason --bundle-file .\\examples\\sample_signal_bundle.json
 ```
+
+## Local Training
+
+Train a local calibrator from your own closed trade outcomes:
+
+```powershell
+ai-trader train local --examples-file .\\examples\\sample_training_examples.jsonl --model-out data\\models\\local_calibrator.json
+```
+
+Enable it in `.env`:
+
+```env
+AI_TRADER_LOCAL_TRAINING_ENABLED=true
+AI_TRADER_LOCAL_CALIBRATOR_PATH=data/models/local_calibrator.json
+```
+
+When enabled, the Final Reasoner applies the calibrator after deterministic guardrails. It can cap conviction and size when your local history says a similar setup has poor expected P&L.
 
 ## C++ Bridge
 

@@ -32,7 +32,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -e ".[dev,broker,llm,rag,data]"
-Copy-Item .env.example .env
+# Create a repo-root .env file and add the keys/settings shown below.
 python -m pytest
 ```
 
@@ -145,12 +145,48 @@ AI_TRADER_RAG_CORPUS_DIR=path/to/trader_corpus
 AI_TRADER_RAG_INDEX_DIR=data/rag/trader_memory
 ```
 
+## Train On Local Data
+
+Local training lets your own closed trades calibrate the Final Reasoner's conviction and sizing. It does not replace the LLM, smart-money scorer, or safety guardrails. The learned calibrator can cap risky plans when similar local setups historically performed poorly.
+
+Train from JSONL examples:
+
+```powershell
+ai-trader train local `
+  --examples-file .\examples\sample_training_examples.jsonl `
+  --model-out data\models\local_calibrator.json
+```
+
+Each JSONL line is one closed outcome with:
+
+- `signal_bundle`: the exact `SignalBundle` available at decision time
+- `trade_plan`: the plan originally produced
+- `pnl_pct`: realized return, such as `-0.07` for `-7%`
+- `narrative`: optional `NarrativeIntelligence`
+- `metadata`: optional audit details
+
+Enable it in `.env`:
+
+```env
+AI_TRADER_LOCAL_TRAINING_ENABLED=true
+AI_TRADER_LOCAL_CALIBRATOR_PATH=data/models/local_calibrator.json
+```
+
+Then run the reasoner normally:
+
+```powershell
+ai-trader reason --bundle-file .\examples\sample_signal_bundle.json
+```
+
+The output `guardrails` field will include the local calibrator's expected P&L and any conviction or size caps it applied.
+
 ## Common Commands
 
 ```powershell
 ai-trader status
 ai-trader analyze-news --ticker MSFT --headline "Earnings beat" --body-file .\examples\sample_news.txt
 ai-trader reason --bundle-file .\examples\sample_signal_bundle.json
+ai-trader train local --examples-file .\examples\sample_training_examples.jsonl --model-out data\models\local_calibrator.json
 ai-trader ibkr-positions
 ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --events-file .\examples\sample_events.jsonl --out result.json
 ai-trader backtest monte-carlo --result-file result.json --n-sims 10000

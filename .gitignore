@@ -12,6 +12,10 @@ logs/
 .polygon_cache/
 .test_report.json
 data/faiss/
+data/models/
 data/rag/
 data/raw/
 data/processed/
+
+# Large source data files (download separately via Quiver/Polygon APIs)
+Training Data/
