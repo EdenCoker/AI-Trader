@@ -1,0 +1,103 @@
+{
+  "sources": [
+    {
+      "auth": null,
+      "complexity_score": 0.25,
+      "coverage_score": 0.6,
+      "freshness_score": 0.8,
+      "id": "local_training_excel",
+      "last_validated": "2026-05-06",
+      "lift_score": 0.1,
+      "notes": "Local Training Data workbook sources used by ingest_training_data.py",
+      "schema_version": 1,
+      "status": "active",
+      "type": "file",
+      "url": "Training Data/"
+    },
+    {
+      "auth": "QUIVER_API_KEY",
+      "complexity_score": 0.3,
+      "coverage_score": 0.45,
+      "freshness_score": 0.9,
+      "id": "quiver_congress",
+      "last_validated": "2026-05-06",
+      "lift_score": 0.14,
+      "notes": "Congressional trading records used as smart-money signals",
+      "schema_version": 1,
+      "status": "active",
+      "type": "api",
+      "url": "https://api.quiverquant.com/beta/bulk/congresstrading"
+    },
+    {
+      "auth": "POLYGON_API_KEY",
+      "complexity_score": 0.2,
+      "coverage_score": 0.95,
+      "freshness_score": 0.9,
+      "id": "polygon_ohlcv",
+      "last_validated": "2026-05-06",
+      "lift_score": 0.05,
+      "notes": "Historical price data for forward returns and backtests",
+      "schema_version": 1,
+      "status": "active",
+      "type": "api",
+      "url": "https://api.polygon.io"
+    },
+    {
+      "auth": "SEC_EDGAR_USER_AGENT",
+      "complexity_score": 0.55,
+      "coverage_score": 0.35,
+      "freshness_score": 0.8,
+      "id": "sec_edgar_filings",
+      "last_validated": "2026-05-06",
+      "lift_score": 0.08,
+      "notes": "Form 4, 8-K, 13F, and related SEC filing probes",
+      "schema_version": 1,
+      "status": "active",
+      "type": "api",
+      "url": "https://www.sec.gov/edgar"
+    },
+    {
+      "auth": null,
+      "complexity_score": 0.35,
+      "coverage_score": 0.4,
+      "freshness_score": 0.75,
+      "id": "finra_short_interest",
+      "last_validated": "2026-05-06",
+      "lift_score": 0.07,
+      "notes": "FINRA consolidated short-interest feed used by ingestion",
+      "schema_version": 1,
+      "status": "active",
+      "type": "api",
+      "url": "https://api.finra.org/data/group/otcmarket/name/consolidatedShortInterest"
+    },
+    {
+      "auth": "FRED_API_KEY",
+      "complexity_score": 0.25,
+      "coverage_score": 1.0,
+      "freshness_score": 0.7,
+      "id": "fred_macro",
+      "last_validated": "2026-05-06",
+      "lift_score": 0.06,
+      "notes": "Macro series joined to ticker-level examples",
+      "schema_version": 1,
+      "status": "active",
+      "type": "api",
+      "url": "https://api.stlouisfed.org/fred"
+    },
+    {
+      "auth": null,
+      "complexity_score": 0.3,
+      "coverage_score": 0.7,
+      "freshness_score": 0.8,
+      "id": "yfinance_fundamentals",
+      "last_validated": "2026-05-06",
+      "lift_score": 0.09,
+      "notes": "Fundamental and options sentiment features used by ingestion",
+      "schema_version": 1,
+      "status": "active",
+      "type": "api",
+      "url": "https://query1.finance.yahoo.com"
+    }
+  ],
+  "updated_at": "2026-05-06T00:00:00Z"
+}

@@ -39,6 +39,10 @@ data = [
     "pyarrow>=15.0",
     "sec-edgar-api>=1.0",
     "tweepy>=4.14",
+    "yfinance>=0.2",
+    "requests>=2.31",
+    "feedparser>=6.0",
+    "pytrends>=4.9",
 ]
 llm = [
     "langchain-core>=1.0",

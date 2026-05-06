@@ -24,6 +24,7 @@ from ai_trader.broker.ibkr import IBKRBroker
 from ai_trader.broker.sizing import BalanceSizingConfig, BalanceSizingResult, size_order_from_balance
 from ai_trader.config import get_settings
 from ai_trader.domain.signals import SignalBundle, SignalDirection
+from ai_trader.evolution.promoter import ModelPromoter
 from ai_trader.gui import run_gui
 from ai_trader.intelligence.trade_plan import TradePlan
 from ai_trader.intelligence.models import NarrativeIntelligence
@@ -44,9 +45,11 @@ app = typer.Typer(add_completion=False, no_args_is_help=True)
 backtest_app = typer.Typer(no_args_is_help=True)
 build_loop_app = typer.Typer(no_args_is_help=True)
 train_app = typer.Typer(no_args_is_help=True)
+model_app = typer.Typer(no_args_is_help=True)
 app.add_typer(backtest_app, name="backtest")
 app.add_typer(build_loop_app, name="build-loop")
 app.add_typer(train_app, name="train")
+app.add_typer(model_app, name="model")
 
 
 class _SecretRedactionFilter(logging.Filter):
@@ -417,7 +420,12 @@ def train_local(
     examples_file: Path = typer.Option(
         ..., exists=True, readable=True, help="LocalTrainingExample JSONL file"
     ),
-    model_out: Path | None = typer.Option(None, help="Output calibrator JSON path"),
+    model_out: Path | None = typer.Option(
+        None,
+        "--out",
+        "--model-out",
+        help="Output calibrator JSON path",
+    ),
     horizon: str = typer.Option(
         "all",
         "--horizon",
@@ -489,6 +497,17 @@ def train_local(
         )
 
     rprint({"status": "trained", "outputs": outputs})
+
+
+@model_app.command("rollback")
+def model_rollback(
+    to: str = typer.Option(..., "--to", help="Version to restore, for example v0003"),
+) -> None:
+    """Rollback production.json to a versioned archived model."""
+
+    _configure_logging()
+    result = ModelPromoter().rollback(to_version=to)
+    rprint({"status": "rolled_back", **result})
 
 
 @train_app.command("backtest")

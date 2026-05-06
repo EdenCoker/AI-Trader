@@ -76,15 +76,23 @@ def main() -> None:
 
 def _run_step(name: str, command: list[str], *, env: dict[str, str]) -> dict:
     started = time.perf_counter()
-    result = subprocess.run(command, capture_output=True, text=True, env=env, check=False)
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
+        check=False,
+    )
     duration = time.perf_counter() - started
     return {
         "name": name,
         "command": command,
         "returncode": result.returncode,
         "duration_s": round(duration, 2),
-        "stdout_tail": result.stdout[-4000:],
-        "stderr_tail": result.stderr[-4000:],
+        "stdout_tail": (result.stdout or "")[-4000:],
+        "stderr_tail": (result.stderr or "")[-4000:],
     }
 
 

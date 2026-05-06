@@ -84,6 +84,10 @@ class AppSettings(BaseModel):
         )
         or ""
     )
+    alpha_vantage_api_key: SecretStr | None = Field(default_factory=lambda: _secret("ALPHA_VANTAGE_API_KEY"))
+    bls_api_key: SecretStr | None = Field(default_factory=lambda: _secret("BLS_API_KEY"))
+    eia_api_key: SecretStr | None = Field(default_factory=lambda: _secret("EIA_API_KEY"))
+    newsapi_api_key: SecretStr | None = Field(default_factory=lambda: _secret("NEWSAPI_API_KEY"))
     openai_api_key: SecretStr | None = Field(default_factory=lambda: _secret("OPENAI_API_KEY"))
     openai_base_url: str = Field(
         default_factory=lambda: _env(
@@ -196,6 +200,10 @@ class AppSettings(BaseModel):
             "openai": self.openai_api_key is not None,
             "ollama": bool(self.ollama_base_url),
             "ibkr": bool(self.ibkr_host) and bool(self.ibkr_port),
+            "alpha_vantage": self.alpha_vantage_api_key is not None,
+            "bls": self.bls_api_key is not None,
+            "eia": self.eia_api_key is not None,
+            "newsapi": self.newsapi_api_key is not None,
         }
 
     def redacted(self) -> dict[str, Any]:

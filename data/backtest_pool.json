@@ -1,0 +1,144 @@
+{
+  "entries": [
+    {
+      "config": {"monte_carlo": true, "regime": "bear_tech", "walk_forward": true},
+      "end": "2022-12-30",
+      "id": "bt_001",
+      "start": "2022-01-03",
+      "tickers": ["MSFT", "AAPL", "NVDA"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "energy_inflation", "walk_forward": true},
+      "end": "2023-03-31",
+      "id": "bt_002",
+      "start": "2022-01-03",
+      "tickers": ["XOM", "CVX", "COP"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "financials_rates", "walk_forward": true},
+      "end": "2023-06-30",
+      "id": "bt_003",
+      "start": "2022-03-01",
+      "tickers": ["JPM", "BAC", "GS"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "healthcare_defensive", "walk_forward": true},
+      "end": "2023-12-29",
+      "id": "bt_004",
+      "start": "2022-07-01",
+      "tickers": ["UNH", "LLY", "JNJ"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "bull_mega_cap", "walk_forward": true},
+      "end": "2023-12-29",
+      "id": "bt_005",
+      "start": "2023-01-03",
+      "tickers": ["MSFT", "META", "GOOGL"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "autos", "walk_forward": true},
+      "end": "2024-03-29",
+      "id": "bt_006",
+      "start": "2023-01-03",
+      "tickers": ["TSLA", "F", "GM"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "aerospace_defense", "walk_forward": true},
+      "end": "2024-06-28",
+      "id": "bt_007",
+      "start": "2023-04-03",
+      "tickers": ["BA", "LMT", "RTX"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "retail", "walk_forward": true},
+      "end": "2024-12-31",
+      "id": "bt_008",
+      "start": "2023-04-03",
+      "tickers": ["WMT", "COST", "TGT"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "semiconductors", "walk_forward": true},
+      "end": "2024-12-31",
+      "id": "bt_009",
+      "start": "2023-07-03",
+      "tickers": ["AMD", "NVDA", "AVGO"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "commerce", "walk_forward": true},
+      "end": "2025-03-31",
+      "id": "bt_010",
+      "start": "2023-07-03",
+      "tickers": ["AMZN", "SHOP", "EBAY"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "consumer_staples", "walk_forward": true},
+      "end": "2024-12-31",
+      "id": "bt_011",
+      "start": "2022-01-03",
+      "tickers": ["KO", "PEP", "MDLZ"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "industrials", "walk_forward": true},
+      "end": "2024-12-31",
+      "id": "bt_012",
+      "start": "2022-06-01",
+      "tickers": ["CAT", "DE", "HON"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "software", "walk_forward": true},
+      "end": "2025-03-31",
+      "id": "bt_013",
+      "start": "2022-09-01",
+      "tickers": ["CRM", "ADBE", "NOW"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "defense_contracts", "walk_forward": true},
+      "end": "2023-12-29",
+      "id": "bt_014",
+      "start": "2022-01-03",
+      "tickers": ["NOC", "GD", "LHX"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "pharma", "walk_forward": true},
+      "end": "2024-06-28",
+      "id": "bt_015",
+      "start": "2022-04-01",
+      "tickers": ["PFE", "MRK", "ABBV"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "payments", "walk_forward": true},
+      "end": "2025-03-31",
+      "id": "bt_016",
+      "start": "2023-01-03",
+      "tickers": ["V", "MA", "PYPL"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "media", "walk_forward": true},
+      "end": "2024-12-31",
+      "id": "bt_017",
+      "start": "2022-01-03",
+      "tickers": ["NFLX", "DIS", "CMCSA"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "industrial_recovery", "walk_forward": true},
+      "end": "2025-03-31",
+      "id": "bt_018",
+      "start": "2023-01-03",
+      "tickers": ["GE", "ETN", "EMR"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "high_growth_software", "walk_forward": true},
+      "end": "2025-03-31",
+      "id": "bt_019",
+      "start": "2023-04-03",
+      "tickers": ["PLTR", "SNOW", "MDB"]
+    },
+    {
+      "config": {"monte_carlo": true, "regime": "broad_market", "walk_forward": true},
+      "end": "2025-03-31",
+      "id": "bt_020",
+      "start": "2022-01-03",
+      "tickers": ["SPY", "QQQ", "IWM"]
+    }
+  ]
+}
