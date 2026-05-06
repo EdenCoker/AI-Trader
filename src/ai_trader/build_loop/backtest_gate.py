@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
@@ -35,8 +36,11 @@ class BacktestGate:
         tickers: list[str],
         start: date,
         end: date,
+        events_file: Path | None = None,
     ) -> GateResult:
-        result = self._engine_factory().run(tickers, start, end, WalkForwardConfig())
+        result = self._engine_factory().run(
+            tickers, start, end, WalkForwardConfig(events_file=events_file)
+        )
         sharpe_delta = result.sharpe - baseline.sharpe
         if sharpe_delta < self.MIN_SHARPE_DELTA:
             return GateResult(
@@ -58,4 +62,3 @@ class BacktestGate:
             max_drawdown=result.max_drawdown,
             reason="passed",
         )
-

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import signal
 import time
 from datetime import date
@@ -18,17 +19,25 @@ from ai_trader.backtesting.engine import WalkForwardConfig, WalkForwardEngine, W
 from ai_trader.backtesting.monte_carlo import StressMonteCarlo
 from ai_trader.bridge.bridge_server import BridgeServer
 from ai_trader.build_loop.loop import BuildLoop
-from ai_trader.broker.contracts import BrokerOrder, OrderSide
+from ai_trader.broker.contracts import BrokerAccountSnapshot, BrokerOrder, BrokerQuote, OrderSide
 from ai_trader.broker.ibkr import IBKRBroker
+from ai_trader.broker.sizing import BalanceSizingConfig, BalanceSizingResult, size_order_from_balance
 from ai_trader.config import get_settings
 from ai_trader.domain.signals import SignalBundle, SignalDirection
+from ai_trader.gui import run_gui
 from ai_trader.intelligence.trade_plan import TradePlan
 from ai_trader.intelligence.models import NarrativeIntelligence
 from ai_trader.intelligence.narrative import NarrativeAnalyzer
 from ai_trader.intelligence.reasoner import FinalReasoner
 from ai_trader.rag.trader_rag import format_retrieved, get_trader_rag
 from ai_trader.self_improvement.scheduler import NightlyReviewScheduler
-from ai_trader.training import LocalCalibratorTrainer, load_training_examples
+from ai_trader.training import (
+    LocalCalibratorTrainer,
+    StrategyBacktestConfig,
+    filter_examples_by_horizon,
+    load_training_examples,
+    run_strategy_backtest,
+)
 
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
@@ -40,15 +49,39 @@ app.add_typer(build_loop_app, name="build-loop")
 app.add_typer(train_app, name="train")
 
 
+class _SecretRedactionFilter(logging.Filter):
+    _patterns = (
+        re.compile(r"apiKey=[^&\s\"']+"),
+        re.compile(r"(OPENAI_API_KEY|POLYGON_API_KEY|QUIVER_API_KEY)=\S+"),
+    )
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = record.getMessage()
+        for pattern in self._patterns:
+            message = pattern.sub(
+                lambda match: match.group(0).split("=")[0] + "=REDACTED",
+                message,
+            )
+        record.msg = message
+        record.args = ()
+        return True
+
+
 def _configure_logging() -> None:
     settings = get_settings()
     Path("logs").mkdir(exist_ok=True)
+    redaction_filter = _SecretRedactionFilter()
+    handlers: list[logging.Handler] = [logging.StreamHandler(), logging.FileHandler("logs/ai_trader.log")]
+    for handler in handlers:
+        handler.addFilter(redaction_filter)
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
-        handlers=[logging.StreamHandler(), logging.FileHandler("logs/ai_trader.log")],
+        handlers=handlers,
         force=True,
     )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 @app.command()
@@ -59,6 +92,17 @@ def status() -> None:
     settings = get_settings()
     rprint(settings.redacted())
     rprint(settings.provider_status())
+
+
+@app.command("gui")
+def gui(
+    host: str = typer.Option("127.0.0.1", help="Host interface for the local GUI"),
+    port: int = typer.Option(8787, help="Port for the local GUI"),
+    open_browser: bool = typer.Option(True, help="Open the GUI in the default browser"),
+) -> None:
+    """Launch the local browser GUI."""
+
+    run_gui(host=host, port=port, open_browser=open_browser)
 
 
 @app.command("analyze-news")
@@ -191,7 +235,32 @@ def reason(
 @app.command("trade")
 def trade(
     plan_file: Path = typer.Option(..., exists=True, readable=True, help="TradePlan JSON (output from `reason --output`)"),
-    shares: float = typer.Option(..., min=0.01, help="Number of shares to order"),
+    shares: float | None = typer.Option(
+        None,
+        min=0.01,
+        help="Fixed share override. Omit to size from available balance.",
+    ),
+    cash_fraction: float = typer.Option(
+        0.02,
+        min=0.0001,
+        max=1.0,
+        help="Fraction of balance to deploy at conviction=1 and size=1.",
+    ),
+    starting_balance: float | None = typer.Option(
+        None,
+        min=0.01,
+        help="Optional starting balance/risk budget cap for sizing.",
+    ),
+    reference_price: float | None = typer.Option(
+        None,
+        min=0.01,
+        help="Optional price override for balance-based sizing.",
+    ),
+    fractional_shares: bool = typer.Option(
+        False,
+        "--fractional-shares",
+        help="Allow fractional calculated share quantities.",
+    ),
     dry_run: bool = typer.Option(False, "--dry-run", help="Print order details without submitting to IBKR"),
 ) -> None:
     """Submit a market order to IBKR paper/live account based on a TradePlan."""
@@ -205,24 +274,131 @@ def trade(
         raise typer.Exit(0)
 
     side = OrderSide.BUY if plan.direction is SignalDirection.LONG else OrderSide.SELL
-    order = BrokerOrder(ticker=plan.ticker, side=side, quantity=shares)
 
-    rprint({
-        "mode": settings.trading_mode,
-        "account": settings.ibkr_account,
-        "order": order.model_dump(),
-        "conviction": plan.conviction,
-        "holding_period_days": plan.holding_period_days,
-        "exit_trigger": plan.exit_trigger,
-    })
-
-    if dry_run:
+    can_size_without_broker = (
+        shares is not None or (starting_balance is not None and reference_price is not None)
+    )
+    if dry_run and can_size_without_broker:
+        order, sizing = _build_order_or_skip(
+            plan=plan,
+            side=side,
+            shares=shares,
+            cash_fraction=cash_fraction,
+            starting_balance=starting_balance,
+            reference_price=reference_price,
+            fractional_shares=fractional_shares,
+        )
+        _print_order_preview(settings, plan, order, sizing=sizing)
         rprint({"dry_run": True, "status": "no order submitted"})
         raise typer.Exit(0)
 
     with IBKRBroker.from_settings(settings) as broker:
+        order, sizing = _build_order_or_skip(
+            plan=plan,
+            side=side,
+            shares=shares,
+            cash_fraction=cash_fraction,
+            starting_balance=starting_balance,
+            reference_price=reference_price,
+            fractional_shares=fractional_shares,
+            broker=broker,
+        )
+        _print_order_preview(settings, plan, order, sizing=sizing)
+
+        if dry_run:
+            rprint({"dry_run": True, "status": "no order submitted"})
+            raise typer.Exit(0)
+
         result = broker.place_order(order)
     rprint(result.model_dump_json(indent=2))
+
+
+def _build_order_or_skip(**kwargs) -> tuple[BrokerOrder, BalanceSizingResult | None]:
+    try:
+        return _build_order_from_plan(**kwargs)
+    except ValueError as exc:
+        rprint({"status": "skipped", "reason": str(exc)})
+        raise typer.Exit(0) from exc
+
+
+def _build_order_from_plan(
+    *,
+    plan: TradePlan,
+    side: OrderSide,
+    shares: float | None,
+    cash_fraction: float,
+    starting_balance: float | None,
+    reference_price: float | None,
+    fractional_shares: bool,
+    broker: IBKRBroker | None = None,
+) -> tuple[BrokerOrder, BalanceSizingResult | None]:
+    if shares is not None:
+        return BrokerOrder(ticker=plan.ticker, side=side, quantity=shares), None
+
+    if broker is None and (starting_balance is None or reference_price is None):
+        raise typer.BadParameter(
+            "balance-based dry runs without IBKR require both --starting-balance and --reference-price"
+        )
+
+    account = _sizing_account(broker, starting_balance)
+    quote = (
+        BrokerQuote(ticker=plan.ticker, price=reference_price, source="override")
+        if reference_price is not None
+        else broker.market_price(plan.ticker)
+    )
+    sizing = size_order_from_balance(
+        plan=plan,
+        side=side,
+        account=account,
+        quote=quote,
+        config=BalanceSizingConfig(
+            cash_fraction=cash_fraction,
+            allow_fractional_shares=fractional_shares,
+        ),
+    )
+    return BrokerOrder(ticker=plan.ticker, side=side, quantity=sizing.quantity), sizing
+
+
+def _sizing_account(
+    broker: IBKRBroker | None,
+    starting_balance: float | None,
+) -> BrokerAccountSnapshot:
+    if broker is None:
+        return BrokerAccountSnapshot(available_funds=starting_balance or 0.0)
+
+    snapshot = broker.account_snapshot()
+    if starting_balance is None:
+        return snapshot
+
+    broker_balance = snapshot.spendable_balance
+    sizing_balance = min(broker_balance, starting_balance) if broker_balance > 0 else starting_balance
+    return BrokerAccountSnapshot(
+        account=snapshot.account,
+        currency=snapshot.currency,
+        available_funds=sizing_balance,
+        net_liquidation=snapshot.net_liquidation,
+    )
+
+
+def _print_order_preview(
+    settings,
+    plan: TradePlan,
+    order: BrokerOrder,
+    *,
+    sizing: BalanceSizingResult | None,
+) -> None:
+    payload = {
+        "mode": settings.trading_mode,
+        "account": settings.ibkr_account,
+        "order": order.model_dump(mode="json"),
+        "conviction": plan.conviction,
+        "size_multiplier": plan.size_multiplier,
+        "holding_period_days": plan.holding_period_days,
+        "exit_trigger": plan.exit_trigger,
+    }
+    if sizing is not None:
+        payload["sizing"] = sizing.model_dump(mode="json")
+    rprint(payload)
 
 
 @app.command("review-nightly")
@@ -242,23 +418,131 @@ def train_local(
         ..., exists=True, readable=True, help="LocalTrainingExample JSONL file"
     ),
     model_out: Path | None = typer.Option(None, help="Output calibrator JSON path"),
+    horizon: str = typer.Option(
+        "all",
+        "--horizon",
+        help="Calibrator horizon to train: all, short, medium, or long.",
+    ),
 ) -> None:
     """Train a local conviction/size calibrator from your historical trade examples."""
 
     _configure_logging()
     settings = get_settings()
     examples = load_training_examples(examples_file)
-    model = LocalCalibratorTrainer().train(examples)
-    output_path = model_out or settings.local_calibrator_path
-    model.save(output_path)
-    rprint(
-        {
-            "status": "trained",
-            "examples": model.training_count,
-            "model_out": str(output_path),
-            "metrics": model.metrics,
+    horizon = horizon.casefold().strip()
+    valid_horizons = {"all", "short", "medium", "long"}
+    if horizon not in valid_horizons:
+        raise typer.BadParameter("--horizon must be one of: all, short, medium, long")
+
+    outputs = []
+    if horizon == "all":
+        model = LocalCalibratorTrainer().train(examples)
+        output_path = model_out or settings.local_calibrator_path
+        model.save(output_path)
+        outputs.append(
+            {
+                "horizon": "all",
+                "examples": model.training_count,
+                "model_out": str(output_path),
+                "metrics": model.metrics,
+            }
+        )
+        horizon_paths = {
+            "short": settings.local_calibrator_short_path,
+            "medium": settings.local_calibrator_medium_path,
+            "long": settings.local_calibrator_long_path,
         }
+        for horizon_name, output_path in horizon_paths.items():
+            subset = filter_examples_by_horizon(examples, horizon_name)  # type: ignore[arg-type]
+            if not subset:
+                outputs.append({"horizon": horizon_name, "status": "skipped", "examples": 0})
+                continue
+            model = LocalCalibratorTrainer().train(subset)
+            model.save(output_path)
+            outputs.append(
+                {
+                    "horizon": horizon_name,
+                    "examples": model.training_count,
+                    "model_out": str(output_path),
+                    "metrics": model.metrics,
+                }
+            )
+    else:
+        subset = filter_examples_by_horizon(examples, horizon)  # type: ignore[arg-type]
+        if not subset:
+            raise typer.BadParameter(f"No {horizon} horizon examples found in {examples_file}")
+        model = LocalCalibratorTrainer().train(subset)
+        default_path = {
+            "short": settings.local_calibrator_short_path,
+            "medium": settings.local_calibrator_medium_path,
+            "long": settings.local_calibrator_long_path,
+        }[horizon]
+        output_path = model_out or default_path
+        model.save(output_path)
+        outputs.append(
+            {
+                "horizon": horizon,
+                "examples": model.training_count,
+                "model_out": str(output_path),
+                "metrics": model.metrics,
+            }
+        )
+
+    rprint({"status": "trained", "outputs": outputs})
+
+
+@train_app.command("backtest")
+def train_backtest(
+    examples_file: Path = typer.Option(
+        Path("logs/training_examples.jsonl"),
+        exists=True,
+        readable=True,
+        help="LocalTrainingExample JSONL file",
+    ),
+    start_date: str | None = typer.Option(
+        None,
+        help="Optional first example date YYYY-MM-DD",
+    ),
+    end_date: str | None = typer.Option(
+        None,
+        help="Optional last example date YYYY-MM-DD",
+    ),
+    split_date: str | None = typer.Option(
+        None,
+        help="Optional out-of-sample split date YYYY-MM-DD",
+    ),
+    min_trades: int = typer.Option(50, min=1, help="Minimum trades for a strategy"),
+    min_active_months: int = typer.Option(3, min=1, help="Minimum active months"),
+    min_trades_per_month: int = typer.Option(
+        5,
+        min=1,
+        help="Minimum trades in a month for that month to count in equity",
+    ),
+    top_n: int = typer.Option(10, min=1, help="Number of strategies to report"),
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write JSON report to file",
+    ),
+) -> None:
+    """Backtest local training examples across deterministic policy rules."""
+
+    _configure_logging()
+    config = StrategyBacktestConfig(
+        start_date=date.fromisoformat(start_date) if start_date is not None else None,
+        end_date=date.fromisoformat(end_date) if end_date is not None else None,
+        split_date=date.fromisoformat(split_date) if split_date is not None else None,
+        min_trades=min_trades,
+        min_active_months=min_active_months,
+        min_trades_per_month=min_trades_per_month,
+        top_n=top_n,
     )
+    report = run_strategy_backtest(load_training_examples(examples_file), config)
+    payload = report.model_dump_json(indent=2)
+    if output is not None:
+        output.write_text(payload, encoding="utf-8")
+    rprint(payload)
 
 
 @app.command("bridge-serve")
@@ -271,17 +555,43 @@ def bridge_serve() -> None:
 
 @backtest_app.command("run")
 def backtest_run(
-    tickers: Annotated[list[str], typer.Option(help="Ticker symbols")],
+    tickers: Annotated[
+        list[str] | None,
+        typer.Option(help="Optional ticker override. Omit to infer from --events-file."),
+    ] = None,
     start: str = typer.Option(..., help="Start date YYYY-MM-DD"),
     end: str = typer.Option(..., help="End date YYYY-MM-DD"),
     out: Path | None = typer.Option(None, help="Output result JSON path"),
     events_file: Path | None = typer.Option(
-        None, exists=True, readable=True, help="Optional smart-money replay events JSONL"
+        None,
+        exists=True,
+        readable=True,
+        help="Optional smart-money replay events JSONL. Used for automatic ticker discovery.",
     ),
     train_window_days: int = typer.Option(252),
     test_window_days: int = typer.Option(63),
     step_days: int = typer.Option(21),
     anchored: bool = typer.Option(False),
+    signal_threshold: float = typer.Option(0.10, min=0.0, max=1.0),
+    max_holding_days: int = typer.Option(63, min=1),
+    stop_loss_pct: float | None = typer.Option(None, min=0.0, max=1.0),
+    take_profit_pct: float | None = typer.Option(None, min=0.0, max=5.0),
+    starting_balance: float = typer.Option(
+        10_000.0,
+        min=0.01,
+        help="Starting simulated account balance.",
+    ),
+    cash_fraction: float = typer.Option(
+        0.02,
+        min=0.0001,
+        max=1.0,
+        help="Fraction of current balance to deploy at conviction=1 and size=1.",
+    ),
+    fractional_shares: bool = typer.Option(
+        False,
+        "--fractional-shares",
+        help="Allow fractional simulated share quantities.",
+    ),
 ) -> None:
     """Run walk-forward validation."""
 
@@ -292,9 +602,16 @@ def backtest_run(
         step_days=step_days,
         anchored=anchored,
         events_file=events_file,
+        signal_threshold=signal_threshold,
+        max_holding_days=max_holding_days,
+        stop_loss_pct=stop_loss_pct,
+        take_profit_pct=take_profit_pct,
+        starting_balance=starting_balance,
+        cash_fraction=cash_fraction,
+        fractional_shares=fractional_shares,
     )
     result = WalkForwardEngine().run(
-        list(tickers),
+        list(tickers) if tickers is not None else None,
         date.fromisoformat(start),
         date.fromisoformat(end),
         config,
@@ -314,7 +631,10 @@ def backtest_monte_carlo(
 
     _configure_logging()
     result = WalkForwardResult.model_validate_json(result_file.read_text(encoding="utf-8"))
-    pnl = [trade.pnl_pct for trade in result.trades]
+    pnl = [
+        trade.account_return if trade.notional > 0 else trade.pnl_pct
+        for trade in result.trades
+    ]
     if not pnl:
         pnl = [window.sharpe / 100 for window in result.windows]
     mc = StressMonteCarlo(n_simulations=n_sims).run_stress(pnl_series=pnl)  # type: ignore[arg-type]
@@ -323,19 +643,27 @@ def backtest_monte_carlo(
 
 @build_loop_app.command("run")
 def build_loop_run(
-    tickers: Annotated[list[str], typer.Option(help="Ticker symbols")] = ["AAPL", "MSFT"],
+    tickers: Annotated[
+        list[str] | None,
+        typer.Option(help="Optional ticker override. Omit to infer from replay events."),
+    ] = None,
     start: str = typer.Option("2022-01-01", help="Backtest start date"),
     end: str = typer.Option("2024-12-31", help="Backtest end date"),
+    events_file: Path | None = typer.Option(
+        Path("examples/sample_events.jsonl"),
+        help="Replay events JSONL used for automatic ticker discovery",
+    ),
     max_proposals: int = typer.Option(2, help="Max proposals per run"),
 ) -> None:
     """Run one proposal-generation/build-loop cycle."""
 
     _configure_logging()
     report = BuildLoop().run_once(
-        list(tickers),
+        list(tickers) if tickers is not None else None,
         date.fromisoformat(start),
         date.fromisoformat(end),
         max_proposals=max_proposals,
+        events_file=events_file,
     )
     rprint(report.model_dump_json(indent=2))
 
@@ -343,7 +671,27 @@ def build_loop_run(
 @app.command("autopilot")
 def autopilot(
     bundle_file: Path = typer.Option(..., exists=True, readable=True, help="SignalBundle JSON file to reuse each cycle"),
-    shares: float = typer.Option(..., min=0.01, help="Shares per order"),
+    shares: float | None = typer.Option(
+        None,
+        min=0.01,
+        help="Fixed shares per order. Omit to size from available balance.",
+    ),
+    cash_fraction: float = typer.Option(
+        0.02,
+        min=0.0001,
+        max=1.0,
+        help="Fraction of balance to deploy at conviction=1 and size=1.",
+    ),
+    starting_balance: float | None = typer.Option(
+        None,
+        min=0.01,
+        help="Optional starting balance/risk budget cap for sizing.",
+    ),
+    fractional_shares: bool = typer.Option(
+        False,
+        "--fractional-shares",
+        help="Allow fractional calculated share quantities.",
+    ),
     min_conviction: float = typer.Option(0.5, min=0.0, max=1.0, help="Minimum conviction to place an order"),
     interval_s: int = typer.Option(300, min=10, help="Seconds between cycles"),
     narrative_file: Path | None = typer.Option(None, exists=True, readable=True, help="Optional NarrativeIntelligence JSON"),
@@ -368,10 +716,16 @@ def autopilot(
         if narrative_file is not None
         else None
     )
+    fixed_shares = shares
 
+    sizing_label = (
+        f"fixed_shares={shares}"
+        if shares is not None
+        else f"cash_fraction={cash_fraction} starting_balance={starting_balance or 'broker'}"
+    )
     rprint(
         f"[bold green]Autopilot started[/bold green] | "
-        f"ticker={bundle.ticker} shares={shares} min_conviction={min_conviction} "
+        f"ticker={bundle.ticker} {sizing_label} min_conviction={min_conviction} "
         f"interval={interval_s}s mode={settings.trading_mode} account={settings.ibkr_account}"
     )
 
@@ -407,11 +761,27 @@ def autopilot(
                 )
             else:
                 side = OrderSide.BUY if plan.direction is SignalDirection.LONG else OrderSide.SELL
-                order = BrokerOrder(ticker=plan.ticker, side=side, quantity=shares)
-                logger.info("Submitting %s %s x%.2f …", side.value, plan.ticker, shares)
                 with IBKRBroker.from_settings(settings) as broker:
+                    order, sizing = _build_order_from_plan(
+                        plan=plan,
+                        side=side,
+                        shares=fixed_shares,
+                        cash_fraction=cash_fraction,
+                        starting_balance=starting_balance,
+                        reference_price=None,
+                        fractional_shares=fractional_shares,
+                        broker=broker,
+                    )
+                    logger.info("Submitting %s %s x%.4f", side.value, plan.ticker, order.quantity)
                     result = broker.place_order(order)
-                rprint(f"[bold]Cycle {cycle}[/bold] order result: {result.model_dump_json()}")
+                rprint(
+                    {
+                        "cycle": cycle,
+                        "order": order.model_dump(mode="json"),
+                        "sizing": sizing.model_dump(mode="json") if sizing is not None else None,
+                        "result": result.model_dump(mode="json"),
+                    }
+                )
 
         except Exception as exc:
             logger.error("Cycle %d failed: %s", cycle, exc)

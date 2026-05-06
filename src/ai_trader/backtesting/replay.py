@@ -1,16 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Iterable
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from ai_trader.domain.events import CongressionalTrade, ThirteenFPositionChange
 
 
-class ReplayEventType(str, Enum):
+class ReplayEventType(StrEnum):
     CONGRESSIONAL_TRADE = "congressional_trade"
     THIRTEEN_F_CHANGE = "13f_change"
 
@@ -25,9 +25,15 @@ class ReplayEvent(BaseModel):
 
     @model_validator(mode="after")
     def _validate_payload(self) -> ReplayEvent:
-        if self.event_type is ReplayEventType.CONGRESSIONAL_TRADE and self.congressional_trade is None:
+        if (
+            self.event_type is ReplayEventType.CONGRESSIONAL_TRADE
+            and self.congressional_trade is None
+        ):
             raise ValueError("congressional_trade payload is required")
-        if self.event_type is ReplayEventType.THIRTEEN_F_CHANGE and self.thirteen_f_change is None:
+        if (
+            self.event_type is ReplayEventType.THIRTEEN_F_CHANGE
+            and self.thirteen_f_change is None
+        ):
             raise ValueError("thirteen_f_change payload is required")
         return self
 
@@ -53,6 +59,20 @@ class EventReplay:
     @property
     def events(self) -> tuple[ReplayEvent, ...]:
         return self._events
+
+    def tickers(self, *, start: date | None = None, end: date | None = None) -> tuple[str, ...]:
+        """Return the sorted ticker universe represented by replay events."""
+
+        return tuple(
+            sorted(
+                {
+                    event.ticker
+                    for event in self._events
+                    if (start is None or event.effective_date >= start)
+                    and (end is None or event.effective_date <= end)
+                }
+            )
+        )
 
     @classmethod
     def from_jsonl(cls, path: Path) -> EventReplay:
@@ -95,11 +115,14 @@ class EventReplay:
         return tuple(
             event
             for event in self._events
-            if event.effective_date == day and (ticker_upper is None or event.ticker == ticker_upper)
+            if event.effective_date == day
+            and (ticker_upper is None or event.ticker == ticker_upper)
         )
 
     @staticmethod
-    def split(events: Iterable[ReplayEvent]) -> tuple[tuple[CongressionalTrade, ...], tuple[ThirteenFPositionChange, ...]]:
+    def split(
+        events: Iterable[ReplayEvent],
+    ) -> tuple[tuple[CongressionalTrade, ...], tuple[ThirteenFPositionChange, ...]]:
         congressional: list[CongressionalTrade] = []
         institutional: list[ThirteenFPositionChange] = []
         for event in events:
@@ -108,4 +131,3 @@ class EventReplay:
             if event.thirteen_f_change is not None:
                 institutional.append(event.thirteen_f_change)
         return tuple(congressional), tuple(institutional)
-

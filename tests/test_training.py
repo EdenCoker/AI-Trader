@@ -7,8 +7,14 @@ from ai_trader.config import AppSettings
 from ai_trader.domain.signals import Signal, SignalBundle, SignalDirection
 from ai_trader.intelligence.reasoner import FinalReasoner
 from ai_trader.intelligence.trade_plan import TradePlan
-from ai_trader.training import LocalCalibratorModel, LocalCalibratorTrainer, LocalTrainingExample
+from ai_trader.training import (
+    LocalCalibratorModel,
+    LocalCalibratorTrainer,
+    LocalTrainingExample,
+    filter_examples_by_horizon,
+)
 from ai_trader.training.data import load_training_examples
+from ai_trader.training.features import FEATURE_NAMES, extract_features
 
 
 class StubLLM:
@@ -66,6 +72,73 @@ def test_load_training_examples_reads_jsonl():
     assert len(examples) == 2
     assert examples[0].signal_bundle.ticker == "MSFT"
     assert examples[0].pnl_pct == pytest.approx(-0.07)
+    assert examples[0].trade_plan.horizon_class == "medium"
+
+
+def test_trade_plan_derives_horizon_class_from_holding_period():
+    assert _plan().horizon_class == "medium"
+    short_plan = TradePlan(
+        ticker="MSFT",
+        as_of=date(2026, 4, 30),
+        direction=SignalDirection.LONG,
+        conviction=0.5,
+        size_multiplier=1.0,
+        holding_period_days=10,
+        exit_trigger="Exit at horizon.",
+    )
+    assert short_plan.horizon_class == "short"
+
+
+def test_signal_specific_features_are_extracted():
+    bundle = SignalBundle(
+        ticker="MSFT",
+        as_of=date(2026, 4, 30),
+        signals=(
+            Signal(
+                name="insider_buy",
+                ticker="MSFT",
+                direction=SignalDirection.LONG,
+                strength=0.8,
+                confidence=0.7,
+                effective_date=date(2026, 4, 30),
+                metadata={"transaction_value_usd": 5_000_000},
+            ),
+            Signal(
+                name="earnings_beat",
+                ticker="MSFT",
+                direction=SignalDirection.LONG,
+                strength=0.4,
+                confidence=0.5,
+                effective_date=date(2026, 4, 30),
+                metadata={"eps_surprise_pct": 25.0},
+            ),
+        ),
+    )
+
+    values = dict(zip(FEATURE_NAMES, extract_features(bundle=bundle, plan=_plan()), strict=False))
+
+    assert values["has_insider_buy"] == 1.0
+    assert values["insider_value_usd"] == pytest.approx(0.1)
+    assert values["eps_surprise_pct"] == pytest.approx(0.25)
+
+
+def test_filter_examples_by_horizon():
+    short = LocalTrainingExample(
+        signal_bundle=_bundle(),
+        trade_plan=TradePlan(
+            ticker="MSFT",
+            as_of=date(2026, 4, 30),
+            direction=SignalDirection.LONG,
+            conviction=0.5,
+            size_multiplier=1.0,
+            holding_period_days=10,
+            exit_trigger="Exit at horizon.",
+        ),
+        pnl_pct=0.03,
+    )
+    medium = LocalTrainingExample(signal_bundle=_bundle(), trade_plan=_plan(), pnl_pct=0.01)
+
+    assert filter_examples_by_horizon((short, medium), "short") == (short,)
 
 
 def test_local_calibrator_saves_loads_and_caps_bad_local_setup(tmp_path: Path):

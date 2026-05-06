@@ -1,0 +1,5027 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Quiver API",
+    "version": "v1",
+    "description": "Tap into the power of alternative data",
+    "contact": {
+      "name": "Us: info@quiverquant.com",
+      "email": "info@quiverquant.com"
+    },
+    "license": {
+      "name": "Terms of Service",
+      "url": "https://www.quiverquant.com/termsofservice/"
+    }
+  },
+  "paths": {
+    "/beta/auth/premium": {
+      "get": {
+        "operationId": "auth_premium_retrieve",
+        "description": "Premium Auth View",
+        "summary": "Premium Authentication",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PremiumAuthResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/bulk/congress/politicians": {
+      "get": {
+        "operationId": "bulk_congress_politicians_retrieve",
+        "description": "Returns a paginated list of all congress members and FEC-registered candidates with trading stats and net worth. Includes both seated members and candidates by default. Results can be sorted by name, trade count, trade volume, or net worth.",
+        "summary": "Bulk Congress Politicians",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chamber",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by congressional chamber: house or senate (case-insensitive)"
+          },
+          {
+            "in": "query",
+            "name": "include_candidates",
+            "schema": {
+              "type": "boolean",
+              "default": "True"
+            },
+            "description": "Include FEC-registered candidates who are not current congress members. Defaults to true. Set to false to return only seated members."
+          },
+          {
+            "in": "query",
+            "name": "is_active",
+            "schema": {
+              "type": "boolean",
+              "default": "True"
+            },
+            "description": "Filter by active/inactive status. Defaults to true for the live endpoint (only active members). Set to false to include all members."
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "party",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by party affiliation: Democratic, Republican, or Independent"
+          },
+          {
+            "in": "query",
+            "name": "sort_by",
+            "schema": {
+              "type": "string",
+              "default": "name"
+            },
+            "description": "Sort field for results. Accepted values: name (alphabetical, ascending), trade_count (descending), trade_volume (descending), net_worth (descending)."
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by US state (full name, e.g. California, Texas, New York)"
+          },
+          {
+            "in": "query",
+            "name": "volume_method",
+            "schema": {
+              "type": "string",
+              "default": "average"
+            },
+            "description": "Method to estimate trade volume from disclosed amount ranges (e.g. '$1,001 - $15,000'). Accepted values: range_start (lower bound), average (midpoint, default), range_end (upper bound)."
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCongressPoliticiansResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/bulk/congresstrading": {
+      "get": {
+        "operationId": "bulk_congresstrading_retrieve",
+        "description": "Returns the full history of transactions by members of U.S. Congress.",
+        "summary": "Bulk Congress Trading",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "bioguide_id",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Congressperson's BioGuide id"
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date, formatted as YYYYMMDD"
+          },
+          {
+            "in": "query",
+            "name": "nonstock",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include non-stock transactions"
+          },
+          {
+            "in": "query",
+            "name": "normalized",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Normalize representative/senator names"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "representative",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Congressperson's name"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "schema": {
+              "type": "string",
+              "default": "V1"
+            },
+            "description": "API Version, one of V1 or V2"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllCongressViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/bulk/corporatedonors": {
+      "get": {
+        "operationId": "bulk_corporatedonors_retrieve",
+        "description": "Returns a paginated bulk of all PAC donations to politicians. Filter by ticker, bioguide ID, election cycle, or FEC transaction type code. Ordered by most recent transaction date.",
+        "summary": "Bulk Corporate Donors",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "bioguide_id",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Congressperson's BioGuide id"
+          },
+          {
+            "in": "query",
+            "name": "cycle",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter donors by election cycle (e.g., 2024)"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          },
+          {
+            "in": "query",
+            "name": "transaction_tp",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by FEC transaction type code (e.g. 24K = contribution to candidate, 24E = independent expenditure). See FEC transaction type codes for full list."
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkCorporateDonorsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/coins": {
+      "get": {
+        "operationId": "coins_retrieve",
+        "description": "Get coins data from reddit.",
+        "summary": "Coins",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoinsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/companies": {
+      "get": {
+        "operationId": "companies_retrieve",
+        "description": "Returns list of companies.",
+        "summary": "Companies",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompaniesResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/funds": {
+      "get": {
+        "operationId": "funds_retrieve",
+        "description": "Return Fund information from SEC13F data.",
+        "summary": "Funds",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/historical/allpatents/{ticker}": {
+      "get": {
+        "operationId": "historical_allpatents_retrieve",
+        "description": "Returns patents granted to the given ticker.",
+        "summary": "Historical Patents",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query from in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query to in YYYYMMDD format"
+          },
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalPatentsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/congresstrading/{ticker}": {
+      "get": {
+        "operationId": "historical_congresstrading_retrieve",
+        "description": "Returns all the stock transactions by members of U.S. Congress involving the given ticker.",
+        "summary": "Historical Congress Trading",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalCongressViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/corporatedonors/{ticker}": {
+      "get": {
+        "operationId": "historical_corporatedonors_retrieve",
+        "description": "Returns all PAC (Political Action Committee) donations from a company to politicians, filtered by stock ticker. Includes donor committee name, transaction amount, date, cycle, and transaction type. Paginated with a default of 500 results per page.",
+        "summary": "Historical Corporate Donors by Ticker",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "bioguide_id",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Congressperson's BioGuide id"
+          },
+          {
+            "in": "query",
+            "name": "cycle",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter donors by election cycle (e.g., 2024)"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalCorporateDonorsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/eventsbeta/{ticker}": {
+      "get": {
+        "operationId": "historical_eventsbeta_retrieve",
+        "description": "Returns historical event beta values for the given ticker, along with historical election odds.",
+        "summary": "Historical Events Beta",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalEventsBetaResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/historical/executivecompensation/{ticker}": {
+      "get": {
+        "operationId": "historical_executivecompensation_retrieve",
+        "description": "Returns historical executive compensation data for a specific ticker. Paginated with a default of 200 results per page.",
+        "summary": "Historical Executive Compensation",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalExecCompResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/govcontracts/{ticker}": {
+      "get": {
+        "operationId": "historical_govcontracts_retrieve",
+        "description": "Returns historical quarterly government contracts amounts for the given ticker.",
+        "summary": "Historical Gov Contracts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalGovContractsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/govcontractsall/{ticker}": {
+      "get": {
+        "operationId": "historical_govcontractsall_retrieve",
+        "description": "Returns historical government contracts for the given ticker.",
+        "summary": "Historical Gov Contracts All",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalGovContractsAllResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/housetrading/{ticker}": {
+      "get": {
+        "operationId": "historical_housetrading_retrieve",
+        "description": "Returns all the stock transactions by U.S. Representatives involving the given ticker.",
+        "summary": "Historical House Trading",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalHouseViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/lobbying/{ticker}": {
+      "get": {
+        "operationId": "historical_lobbying_retrieve",
+        "description": "Returns all lobbying spending instances for the given ticker.",
+        "summary": "Historical Lobbying",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Query to match specific issue or summary"
+          },
+          {
+            "in": "query",
+            "name": "queryTicker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for searchall view"
+          },
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalLobbyingResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/offexchange/{ticker}": {
+      "get": {
+        "operationId": "historical_offexchange_retrieve",
+        "description": "Returns daily historical off-exchange activity for the given ticker.",
+        "summary": "Historical Off-Exchange",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date, formatted as YYYYMMDD"
+          },
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalDPViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/historical/senatetrading/{ticker}": {
+      "get": {
+        "operationId": "historical_senatetrading_retrieve",
+        "description": "Returns all the stock transactions by U.S. Senators involving the given ticker.",
+        "summary": "Historical Senate Trading",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalSenateViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/ignoredtickers": {
+      "get": {
+        "operationId": "ignoredtickers_retrieve",
+        "description": "Get ignored tickers",
+        "summary": "Ignored Tickers",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IgnoredTickersResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/live/allpatents": {
+      "get": {
+        "operationId": "live_allpatents_retrieve",
+        "description": "Returns patents granted recently, max 30 day range.",
+        "summary": "Recent Patents",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query from in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query to in YYYYMMDD format"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentPatentsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/appratings": {
+      "get": {
+        "operationId": "live_appratings_retrieve",
+        "description": "Returns the last week of app ratings data.",
+        "summary": "App Ratings",
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppRatingResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/bill_summaries": {
+      "get": {
+        "operationId": "live_bill_summaries_retrieve",
+        "description": "Return recent bill summaries.",
+        "summary": "Recent Bill Summaries",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Query to match specific issue or summary"
+          },
+          {
+            "in": "query",
+            "name": "summary_limit",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Summary length limit for bill summaries"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "enterprise"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillSummariesResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/live/cnbc": {
+      "get": {
+        "operationId": "live_cnbc_retrieve",
+        "description": "Returns list of recent CNBC trades.",
+        "summary": "Recent CNBC Trades",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "analyst",
+            "schema": {
+              "type": "string"
+            },
+            "description": "CNBC Analyst name contains"
+          },
+          {
+            "in": "query",
+            "name": "bulk",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Return bulk data"
+          },
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date, formatted as YYYYMMDD"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentCNBCResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/live/congress/politicians": {
+      "get": {
+        "operationId": "live_congress_politicians_retrieve",
+        "description": "Returns currently active congress members with their trading stats (trade count, estimated trade volume) and live net worth. Defaults to active members only. Use chamber, party, and state filters to narrow results.",
+        "summary": "Live Congress Politicians",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "chamber",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by congressional chamber: house or senate (case-insensitive)"
+          },
+          {
+            "in": "query",
+            "name": "is_active",
+            "schema": {
+              "type": "boolean",
+              "default": "True"
+            },
+            "description": "Filter by active/inactive status. Defaults to true for the live endpoint (only active members). Set to false to include all members."
+          },
+          {
+            "in": "query",
+            "name": "party",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by party affiliation: Democratic, Republican, or Independent"
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by US state (full name, e.g. California, Texas, New York)"
+          },
+          {
+            "in": "query",
+            "name": "volume_method",
+            "schema": {
+              "type": "string",
+              "default": "average"
+            },
+            "description": "Method to estimate trade volume from disclosed amount ranges (e.g. '$1,001 - $15,000'). Accepted values: range_start (lower bound), average (midpoint, default), range_end (upper bound)."
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveCongressPoliticiansResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/congressholdings": {
+      "get": {
+        "operationId": "live_congressholdings_retrieve",
+        "description": "Returns live congress holdings data.",
+        "summary": "Live Congress Holdings",
+        "tags": [
+          "Tier 1",
+          "enterprise"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CongressHoldingsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/live/congresstrading": {
+      "get": {
+        "operationId": "live_congresstrading_retrieve",
+        "description": "Returns the most recent transactions by members of U.S. Congress.",
+        "summary": "Live Congress Trading",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "normalized",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Normalize representative/senator names"
+          },
+          {
+            "in": "query",
+            "name": "representative",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Congressperson's name"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveCongressViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/etfholdings": {
+      "get": {
+        "operationId": "live_etfholdings_retrieve",
+        "description": "Returns static portfolio holdings at most recent data update.",
+        "summary": "Live ETF Holdings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "etf",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by ETF value"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ETFHoldingsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/flights": {
+      "get": {
+        "operationId": "live_flights_retrieve",
+        "description": "Get live flight data",
+        "summary": "Live Flights",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveFlightsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/live/govcontracts": {
+      "get": {
+        "operationId": "live_govcontracts_retrieve",
+        "description": "Returns last quarter's government contract amounts for all companies.",
+        "summary": "Recent Gov Contracts",
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentGovContractsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/govcontractsall": {
+      "get": {
+        "operationId": "live_govcontractsall_retrieve",
+        "description": "Returns recently announced contracts across all companies.",
+        "summary": "Recent Gov Contracts All",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date, formatted as YYYYMMDD"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentGovContractsAllResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/housetrading": {
+      "get": {
+        "operationId": "live_housetrading_retrieve",
+        "description": "Returns the most recent transactions by U.S. Representatives.",
+        "summary": "Recent House Trading",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Congressperson's name"
+          },
+          {
+            "in": "query",
+            "name": "options",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include options with trading data"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentHouseViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/insiders": {
+      "get": {
+        "operationId": "live_insiders_retrieve",
+        "description": "Returns recent insider transactions.",
+        "summary": "Live Insider Trading",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date, formatted as YYYYMMDD"
+          },
+          {
+            "in": "query",
+            "name": "limit_codes",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Limit codes for form4 search"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          },
+          {
+            "in": "query",
+            "name": "uploaded",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date the transaction was uploaded, formatted as YYYYMMDD"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Form4Response"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/legislation": {
+      "get": {
+        "operationId": "live_legislation_retrieve",
+        "description": "Return recent legislation data.",
+        "summary": "Recent Legislation",
+        "tags": [
+          "Tier 1",
+          "enterprise"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayLegislationResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/live/lobbying": {
+      "get": {
+        "operationId": "live_lobbying_retrieve",
+        "description": "Returns the most recent lobbying spending instances across all companies.",
+        "summary": "Live Lobbying",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "all",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Select all records"
+          },
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query from in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query to in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayLobbyingResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/offexchange": {
+      "get": {
+        "operationId": "live_offexchange_retrieve",
+        "description": "Returns yesterday's off-exchange activity across all companies.",
+        "summary": "Live Off-Exchange",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayDPViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/patentdrift": {
+      "get": {
+        "operationId": "live_patentdrift_retrieve",
+        "description": "Returns historical patent drift data for all tickers.",
+        "summary": "Patent Drift",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query from in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query to in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "latest",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Fetch latest results"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatentDriftResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/patentmomentum": {
+      "get": {
+        "operationId": "live_patentmomentum_retrieve",
+        "description": "Returns historical patent momentum data for all tickers.",
+        "summary": "Patent Momentum",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date_from",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query from in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "date_to",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date to query to in YYYYMMDD format"
+          },
+          {
+            "in": "query",
+            "name": "latest",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Fetch latest results"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PatentMomentumResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/quivernews": {
+      "get": {
+        "operationId": "live_quivernews_retrieve",
+        "description": "Returns recent news articles from Quiver News. Paginated with a default of 30 results per page. Can be filtered by ticker.",
+        "summary": "Live Quiver News",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveQuiverNewsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/rss": {
+      "get": {
+        "operationId": "live_rss_retrieve",
+        "description": "Get live RSS data",
+        "summary": "Live RSS",
+        "tags": [
+          "Tier 1",
+          "enterprise"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveRSSResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/live/sec13f": {
+      "get": {
+        "operationId": "live_sec13f_retrieve",
+        "description": "Returns static portfolio holdings at specific filing periods.",
+        "summary": "Live SEC13F",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date, formatted as YYYYMMDD"
+          },
+          {
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Owner for SEC13F Search"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Period for SEC13F Search"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          },
+          {
+            "in": "query",
+            "name": "today",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Search today's data for WSB search"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SEC13FResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/sec13fchanges": {
+      "get": {
+        "operationId": "live_sec13fchanges_retrieve",
+        "description": "Returns static portfolio holdings at specific filing periods.",
+        "summary": "Live SEC13F Changes",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Date, formatted as YYYYMMDD"
+          },
+          {
+            "in": "query",
+            "name": "mobile",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Mobile response"
+          },
+          {
+            "in": "query",
+            "name": "most_recent",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Restrict results to most recent report period only"
+          },
+          {
+            "in": "query",
+            "name": "owner",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Owner for SEC13F Search"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Page number"
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Items / page"
+          },
+          {
+            "in": "query",
+            "name": "period",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Period for SEC13F Search"
+          },
+          {
+            "in": "query",
+            "name": "show_new_funds",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include funds filing for the first time in results"
+          },
+          {
+            "in": "query",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock"
+          },
+          {
+            "in": "query",
+            "name": "today",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Search today's data for WSB search"
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SEC13FChangesResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/senatetrading": {
+      "get": {
+        "operationId": "live_senatetrading_retrieve",
+        "description": "Returns the most recent transactions by U.S. Senators.",
+        "summary": "Recent Senate Trading",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "name",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Congressperson's name"
+          },
+          {
+            "in": "query",
+            "name": "options",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Include options with trading data"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecentSenateViewResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/live/topshareholders/{ticker}": {
+      "get": {
+        "operationId": "live_topshareholders_retrieve",
+        "description": "Returns the top shareholders for a specific ticker, including both direct and derivative holdings.",
+        "summary": "Live Top Shareholders",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "ticker",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ticker for any given stock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Tier 2",
+          "public"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LiveTopShareholdersResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/beta/personalities": {
+      "get": {
+        "operationId": "personalities_retrieve",
+        "description": "Returns list of CNBC personalities.",
+        "summary": "CNBC Personalities",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalitiesResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/strategies/holdings": {
+      "get": {
+        "operationId": "strategies_holdings_retrieve",
+        "description": "Get strategies holdings data",
+        "summary": "Strategies Holdings",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "strategy",
+            "schema": {
+              "type": "string",
+              "default": "all"
+            },
+            "description": "Strategy type"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "enterprise"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyHoldingsResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/strategies/holdings_infrequent": {
+      "get": {
+        "operationId": "strategies_holdings_infrequent_retrieve",
+        "description": "Get strategies holdings data for infrequently rebalancing strategies",
+        "summary": "Strategies Holdings for Infrequently Rebalancing Strategies",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "strategy",
+            "schema": {
+              "type": "string",
+              "default": "all"
+            },
+            "description": "Strategy type"
+          }
+        ],
+        "tags": [
+          "Tier 1",
+          "enterprise"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StrategyHoldingsInfrequentResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/tickerdata": {
+      "get": {
+        "operationId": "tickerdata_retrieve",
+        "description": "Get ticker data",
+        "summary": "Ticker Data",
+        "tags": [
+          "Tier 1",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TickerDataResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/today/eventsbeta": {
+      "get": {
+        "operationId": "today_eventsbeta_retrieve",
+        "description": "Returns current event beta values for all companies.",
+        "summary": "Today Events Beta",
+        "tags": [
+          "Tier 2",
+          "internal"
+        ],
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TodayEventsBetaResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/token/login/": {
+      "post": {
+        "operationId": "token_login_create",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenCreate"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenCreate"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenCreate"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenCreate"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "x-internal": true
+      }
+    },
+    "/beta/token/logout/": {
+      "post": {
+        "operationId": "token_logout_create",
+        "security": [
+          {
+            "WebPlatformTokenAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No response body"
+          }
+        },
+        "x-internal": true
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AllCongressViewResponse": {
+        "title": "AllCongressViewResponse",
+        "description": "JSON Response structure for all congress view endpoint.",
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/CongressionalTradeV2"
+            },
+            {
+              "$ref": "#/components/schemas/CongressionalTrade"
+            }
+          ]
+        }
+      },
+      "AppRating": {
+        "title": "AppRating",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker of app's publisher",
+            "type": "string"
+          },
+          "App": {
+            "title": "App",
+            "description": "App's title",
+            "type": "string"
+          },
+          "Created": {
+            "title": "Created",
+            "description": "Initial publication date of app",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Publisher": {
+            "title": "Publisher",
+            "description": "Full name of app's publisher",
+            "type": "string"
+          },
+          "Rating": {
+            "title": "Rating",
+            "description": "Average rating (on a 0-5 scale) of app",
+            "type": "number"
+          },
+          "Count": {
+            "title": "Count",
+            "description": "Total number of reviews of app",
+            "type": "integer"
+          },
+          "Time": {
+            "title": "Time",
+            "description": "Time that this row of ratings data was scraped",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "Ticker",
+          "App",
+          "Created",
+          "Publisher",
+          "Rating",
+          "Count",
+          "Time"
+        ]
+      },
+      "AppRatingResponse": {
+        "title": "AppRatingResponse",
+        "description": "JSON Response structure for app rating endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/AppRating"
+        }
+      },
+      "AuthData": {
+        "title": "AuthData",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "current_period_end": {
+            "title": "Current Period End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "current_period_end"
+        ]
+      },
+      "BillSummariesResponse": {
+        "title": "BillSummariesResponse",
+        "description": "JSON Response structure for bill summaries endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/BillSummary"
+        }
+      },
+      "BillSummary": {
+        "title": "BillSummary",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "congress": {
+            "title": "Congress",
+            "type": "integer"
+          },
+          "number": {
+            "title": "Number",
+            "type": "string"
+          },
+          "originChamber": {
+            "title": "Originchamber",
+            "type": "string"
+          },
+          "currentChamber": {
+            "title": "Currentchamber",
+            "type": "string"
+          },
+          "billType": {
+            "title": "Billtype",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "lastAction": {
+            "title": "Lastaction",
+            "type": "string"
+          },
+          "lastActionDate": {
+            "title": "Lastactiondate",
+            "type": "string"
+          },
+          "ctid": {
+            "title": "Ctid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "congress",
+          "number",
+          "originChamber",
+          "billType",
+          "summary",
+          "url",
+          "lastAction",
+          "lastActionDate"
+        ]
+      },
+      "BulkCongressPoliticiansResponse": {
+        "title": "BulkCongressPoliticiansResponse",
+        "description": "JSON Response structure for bulk congress politicians endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PoliticianDetailEntry"
+        }
+      },
+      "BulkCorporateDonorsResponse": {
+        "title": "BulkCorporateDonorsResponse",
+        "description": "JSON Response structure for bulk corporate donors endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CorporateDonorEntry"
+        }
+      },
+      "CNBCTrade": {
+        "title": "CNBCTrade",
+        "description": "CNBC Trade model.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "Date": {
+            "title": "Date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Notes": {
+            "title": "Notes",
+            "type": "string"
+          },
+          "Direction": {
+            "title": "Direction",
+            "type": "string"
+          },
+          "Traders": {
+            "title": "Traders",
+            "type": "string"
+          },
+          "Upload_Time": {
+            "title": "Upload Time",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "Date",
+          "Upload_Time"
+        ]
+      },
+      "Coin": {
+        "title": "Coin",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Coin": {
+            "title": "Coin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Coin"
+        ]
+      },
+      "CoinsResponse": {
+        "title": "CoinsResponse",
+        "description": "JSON Response structure for coins endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Coin"
+        }
+      },
+      "CompaniesResponse": {
+        "title": "CompaniesResponse",
+        "description": "JSON Response structure for internal companies endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Company"
+        }
+      },
+      "Company": {
+        "title": "Company",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Name",
+          "Ticker"
+        ]
+      },
+      "CongressHoldingsResponse": {
+        "title": "CongressHoldingsResponse",
+        "description": "Json response structure for congress holdings endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/HoldingsEntry"
+        }
+      },
+      "CongressionalTrade": {
+        "title": "CongressionalTrade",
+        "description": "V1 congressional trade data structure.",
+        "type": "object",
+        "properties": {
+          "Representative": {
+            "title": "Representative",
+            "description": "Name of Congressperson who made the transaction",
+            "type": "string"
+          },
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "description": "BioGuide ID of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "ReportDate": {
+            "title": "Reportdate",
+            "description": "Date the transaction was reported",
+            "type": "string",
+            "format": "date-time"
+          },
+          "TransactionDate": {
+            "title": "Transactiondate",
+            "description": "Date the transaction took place",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Ticker of shares transacted",
+            "type": "string"
+          },
+          "Transaction": {
+            "title": "Transaction",
+            "description": "Purchase or Sale",
+            "type": "string"
+          },
+          "Range": {
+            "title": "Range",
+            "type": "string"
+          },
+          "District": {
+            "title": "District",
+            "description": "District of the congressperson",
+            "type": "string"
+          },
+          "House": {
+            "title": "House",
+            "description": "Representatives or Senate",
+            "type": "string"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Lower bound of transaction size ($). Congressional trades are reported as a range of values, this variable is the lower bound of that range",
+            "default": 0,
+            "type": "string"
+          },
+          "Party": {
+            "title": "Party",
+            "description": "Political party of the congressperson who made the trade",
+            "type": "string"
+          },
+          "last_modified": {
+            "title": "Last Modified",
+            "description": "Date that Quiver last updated the details of this transaction",
+            "type": "string",
+            "format": "date-time"
+          },
+          "TickerType": {
+            "title": "Tickertype",
+            "description": "Reported type of asset traded. Note: CS and ST are commonly used as abbreviated for common stock",
+            "type": "string"
+          },
+          "Description": {
+            "title": "Description",
+            "description": "Transaction description",
+            "type": "string"
+          },
+          "ExcessReturn": {
+            "title": "Excessreturn",
+            "description": "Estimated return of stock compared to return of S&P 500 since the transaction date",
+            "type": "number"
+          },
+          "PriceChange": {
+            "title": "Pricechange",
+            "description": "Percentage change in stock price since the transaction date",
+            "type": "number"
+          },
+          "SPYChange": {
+            "title": "Spychange",
+            "description": "Percentage change in S&P 500 since the transaction date",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Representative",
+          "Party"
+        ]
+      },
+      "CongressionalTradeV2": {
+        "title": "CongressionalTradeV2",
+        "description": "V2 congressional trade data structure.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Ticker of shares transacted",
+            "type": "string"
+          },
+          "TickerType": {
+            "title": "Tickertype",
+            "description": "Reported type of asset traded. Note: CS and ST are commonly used as abbreviated for common stock",
+            "type": "string"
+          },
+          "Company": {
+            "title": "Company",
+            "description": "RecentSenate",
+            "type": "string"
+          },
+          "Traded": {
+            "title": "Traded",
+            "description": "Transaction date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Transaction": {
+            "title": "Transaction",
+            "description": "Purchase or Sale",
+            "type": "string"
+          },
+          "Trade_Size_USD": {
+            "title": "Trade Size Usd",
+            "description": "Lower bound of transaction size ($). Congressional trades are reported as a range of values, this variable is the lower bound of that range",
+            "type": "string"
+          },
+          "Status": {
+            "title": "Status",
+            "description": "Status of lawmaker’s position",
+            "type": "string"
+          },
+          "Subholding": {
+            "title": "Subholding",
+            "description": "Reported subholding, if relevant",
+            "type": "string"
+          },
+          "Description": {
+            "title": "Description",
+            "description": "Transaction description",
+            "type": "string"
+          },
+          "Name": {
+            "title": "Name",
+            "description": "Name of congressperson who made the transaction",
+            "type": "string"
+          },
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "description": "BioGuide ID of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "Filed": {
+            "title": "Filed",
+            "description": "Disclosure date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Party": {
+            "title": "Party",
+            "description": "Party of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "District": {
+            "title": "District",
+            "description": "District of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "Chamber": {
+            "title": "Chamber",
+            "description": "Senate or House",
+            "type": "string"
+          },
+          "Comments": {
+            "title": "Comments",
+            "description": "Any comments left by lawmaker",
+            "type": "string"
+          },
+          "Quiver_Upload_Time": {
+            "title": "Quiver Upload Time",
+            "description": "Time that transaction was scraped and processed by Quiver",
+            "type": "string",
+            "format": "date-time"
+          },
+          "excess_return": {
+            "title": "Excess Return",
+            "description": "Estimated return of stock compared to return of S&P 500 since the transaction date",
+            "type": "string"
+          },
+          "State": {
+            "title": "State",
+            "type": "string"
+          },
+          "last_modified": {
+            "title": "Last Modified",
+            "description": "Date that Quiver last updated the details of this transaction",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "Traded",
+          "Name",
+          "BioGuideID",
+          "Filed",
+          "Party",
+          "Chamber"
+        ]
+      },
+      "CorporateDonorEntry": {
+        "title": "CorporateDonorEntry",
+        "description": "PAC corporate donor transaction.",
+        "type": "object",
+        "properties": {
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "type": "string"
+          },
+          "CandidateName": {
+            "title": "Candidatename",
+            "type": "string"
+          },
+          "CompanyCMTENM": {
+            "title": "Companycmtenm",
+            "type": "string"
+          },
+          "TransactionDate": {
+            "title": "Transactiondate",
+            "type": "string",
+            "format": "date-time"
+          },
+          "TransactionAmount": {
+            "title": "Transactionamount",
+            "type": "integer"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "CommitteeName": {
+            "title": "Committeename",
+            "type": "string"
+          },
+          "Cycle": {
+            "title": "Cycle",
+            "type": "integer"
+          },
+          "TransactionType": {
+            "title": "Transactiontype",
+            "type": "string"
+          },
+          "CompanyCMTEID": {
+            "title": "Companycmteid",
+            "type": "string"
+          },
+          "Uploaded": {
+            "title": "Uploaded",
+            "type": "string"
+          }
+        }
+      },
+      "DPShortRecord": {
+        "title": "DPShortRecord",
+        "description": "New DPShort data model.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "OTC_Short": {
+            "title": "Otc Short",
+            "description": "Number of shares short on the given day",
+            "type": "integer"
+          },
+          "OTC_Total": {
+            "title": "Otc Total",
+            "description": "Total number of shares on the given day",
+            "type": "integer"
+          },
+          "DPI": {
+            "title": "Dpi",
+            "description": "% of shares short",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Ticker",
+          "Date",
+          "OTC_Short",
+          "OTC_Total",
+          "DPI"
+        ]
+      },
+      "ETFEntry": {
+        "title": "ETFEntry",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "ETF Symbol": {
+            "title": "Etf Symbol",
+            "description": "Symbol of ETF",
+            "type": "string"
+          },
+          "Holding Name": {
+            "title": "Holding Name",
+            "description": "Name of company being held",
+            "type": "string"
+          },
+          "Holding Symbol": {
+            "title": "Holding Symbol",
+            "description": "Symbol of company being held",
+            "type": "string"
+          },
+          "% of ETF": {
+            "title": "% Of Etf",
+            "description": "Proportional value of fund's position",
+            "type": "number"
+          },
+          "Value ($)": {
+            "title": "Value ($)",
+            "description": "Value (USD) of fund's position",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ETF Symbol",
+          "Holding Name",
+          "% of ETF",
+          "Value ($)"
+        ]
+      },
+      "ETFHoldingsResponse": {
+        "title": "ETFHoldingsResponse",
+        "description": "JSON Response structure for etf holdings endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ETFEntry"
+        }
+      },
+      "ExecCompEntry": {
+        "title": "ExecCompEntry",
+        "description": "Executive compensation entry.",
+        "type": "object",
+        "properties": {
+          "CIK": {
+            "title": "Cik",
+            "type": "string"
+          },
+          "Name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "Role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "Year": {
+            "title": "Year",
+            "type": "integer"
+          },
+          "Salary": {
+            "title": "Salary",
+            "type": "number"
+          },
+          "Bonus": {
+            "title": "Bonus",
+            "type": "number"
+          },
+          "StockAndOptionAwards": {
+            "title": "Stockandoptionawards",
+            "type": "number"
+          },
+          "TotalCompensation": {
+            "title": "Totalcompensation",
+            "type": "number"
+          },
+          "filerName": {
+            "title": "Filername",
+            "type": "string"
+          },
+          "fileDate": {
+            "title": "Filedate",
+            "type": "string"
+          },
+          "uploaded": {
+            "title": "Uploaded",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Flight": {
+        "title": "Flight",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "Date": {
+            "title": "Date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "DepartureCity": {
+            "title": "Departurecity",
+            "type": "string"
+          },
+          "ArrivalCity": {
+            "title": "Arrivalcity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Ticker",
+          "Date"
+        ]
+      },
+      "Form4Entry": {
+        "title": "Form4Entry",
+        "description": "Form4 entry information.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Transaction date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Name": {
+            "title": "Name",
+            "description": "Name of transactor",
+            "type": "string"
+          },
+          "AcquiredDisposedCode": {
+            "title": "Acquireddisposedcode",
+            "description": "Indicates whether transaction was share acquisition or disposal",
+            "type": "string"
+          },
+          "TransactionCode": {
+            "title": "Transactioncode",
+            "description": "Indicates type of transaction (see more: https://www.sec.gov/files/forms-3-4-5.pdf)",
+            "type": "string"
+          },
+          "Shares": {
+            "title": "Shares",
+            "description": "Number of shares transacted",
+            "type": "number"
+          },
+          "PricePerShare": {
+            "title": "Pricepershare",
+            "description": "Reported price per share transacted",
+            "type": "number"
+          },
+          "SharesOwnedFollowing": {
+            "title": "Sharesownedfollowing",
+            "description": "Number of shares owned by insider following transaction",
+            "type": "number"
+          },
+          "fileDate": {
+            "title": "Filedate",
+            "description": "Time that the transaction was filed (and became publicly available)",
+            "type": "string",
+            "format": "date-time"
+          },
+          "officerTitle": {
+            "title": "Officertitle",
+            "description": "Corporate title of the transactor",
+            "type": "string"
+          },
+          "isDirector": {
+            "title": "Isdirector",
+            "description": "Whether the transactor is a director of the company",
+            "type": "boolean"
+          },
+          "isOfficer": {
+            "title": "Isofficer",
+            "description": "Whether the transactor is an officer of the company",
+            "type": "boolean"
+          },
+          "isTenPercentOwner": {
+            "title": "Istenpercentowner",
+            "description": "Whether the transactor is a 10% owner of the company",
+            "type": "boolean"
+          },
+          "isOther": {
+            "title": "Isother",
+            "description": "The transactor is not a director, officer, or 10% owner",
+            "type": "boolean"
+          },
+          "directOrIndirectOwnership": {
+            "title": "Directorindirectownership",
+            "description": "Ownership type ('D' or 'I')",
+            "type": "string"
+          },
+          "uploaded": {
+            "title": "Uploaded",
+            "description": "Time that the transaction was uploaded by Quiver",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "Date",
+          "Name",
+          "AcquiredDisposedCode",
+          "TransactionCode",
+          "fileDate"
+        ]
+      },
+      "Form4Response": {
+        "title": "Form4Response",
+        "description": "JSON Response structure for form4 (insiders) endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Form4Entry"
+        }
+      },
+      "Fund": {
+        "title": "Fund",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Fund": {
+            "title": "Fund",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Fund"
+        ]
+      },
+      "FundsResponse": {
+        "title": "FundsResponse",
+        "description": "JSON Response structure for funds endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Fund"
+        }
+      },
+      "GovContract": {
+        "title": "GovContract",
+        "description": "Gov contract information (basic).",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Total dollars obligated under the given contract",
+            "type": "string"
+          },
+          "Qtr": {
+            "title": "Qtr",
+            "description": "Calendar quarter",
+            "type": "integer"
+          },
+          "Year": {
+            "title": "Year",
+            "description": "Year of the contract announcement",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "Ticker",
+          "Amount",
+          "Qtr",
+          "Year"
+        ]
+      },
+      "GovContractAll": {
+        "title": "GovContractAll",
+        "description": "Gov contract information (all).",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Announcement date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Description": {
+            "title": "Description",
+            "description": "Contract description",
+            "type": "string"
+          },
+          "Agency": {
+            "title": "Agency",
+            "description": "Awarding Agency Name",
+            "type": "string"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Total dollars obligated under the given contract",
+            "type": "number"
+          },
+          "action_date": {
+            "title": "Action Date",
+            "description": "Contract action date",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "Ticker",
+          "Date",
+          "action_date"
+        ]
+      },
+      "HistoricalCongressViewResponse": {
+        "title": "HistoricalCongressViewResponse",
+        "description": "JSON Response structure for historical congress view endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CongressionalTrade"
+        }
+      },
+      "HistoricalCorporateDonorsResponse": {
+        "title": "HistoricalCorporateDonorsResponse",
+        "description": "JSON Response structure for historical corporate donors endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CorporateDonorEntry"
+        }
+      },
+      "HistoricalDPViewResponse": {
+        "title": "HistoricalDPViewResponse",
+        "description": "JSON Response structure for historical lobbying endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/DPShortRecord"
+        }
+      },
+      "HistoricalEventBeta": {
+        "title": "HistoricalEventBeta",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "FirstEventBeta": {
+            "title": "Firsteventbeta",
+            "type": "number"
+          },
+          "FirstEventOdds": {
+            "title": "Firsteventodds",
+            "type": "number"
+          },
+          "EventName": {
+            "title": "Eventname",
+            "default": "PresidentialElection2020",
+            "type": "string"
+          },
+          "FirstEventName": {
+            "title": "Firsteventname",
+            "default": "TrumpVictory",
+            "type": "string"
+          },
+          "SecondEventName": {
+            "title": "Secondeventname",
+            "default": "BidenVictory",
+            "type": "string"
+          },
+          "SecondEventBeta": {
+            "title": "Secondeventbeta",
+            "type": "number"
+          },
+          "SecondEventOdds": {
+            "title": "Secondeventodds",
+            "type": "number"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Date",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "Ticker",
+          "FirstEventOdds",
+          "Date"
+        ]
+      },
+      "HistoricalEventsBetaResponse": {
+        "title": "HistoricalEventsBetaResponse",
+        "description": "JSON Response structure for historical events beta endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/HistoricalEventBeta"
+        }
+      },
+      "HistoricalExecCompResponse": {
+        "title": "HistoricalExecCompResponse",
+        "description": "JSON Response structure for executive compensation endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/ExecCompEntry"
+        }
+      },
+      "HistoricalGovContractsAllResponse": {
+        "title": "HistoricalGovContractsAllResponse",
+        "description": "JSON Response structure for historical gov contracts all endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GovContractAll"
+        }
+      },
+      "HistoricalGovContractsResponse": {
+        "title": "HistoricalGovContractsResponse",
+        "description": "JSON Response structure for historical gov contracts endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GovContract"
+        }
+      },
+      "HistoricalHouseViewResponse": {
+        "title": "HistoricalHouseViewResponse",
+        "description": "Json response structure for historical house view endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/HouseTrade"
+        }
+      },
+      "HistoricalLobbyingResponse": {
+        "title": "HistoricalLobbyingResponse",
+        "description": "JSON Response structure for historical lobbying endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/LobbyingRecord"
+        }
+      },
+      "HistoricalPatentsResponse": {
+        "title": "HistoricalPatentsResponse",
+        "description": "JSON Response structure for historical patent endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Patent"
+        }
+      },
+      "HistoricalSenateViewResponse": {
+        "title": "HistoricalSenateViewResponse",
+        "description": "Json response structure for historical senate view endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SenateTrade"
+        }
+      },
+      "HoldingsEntry": {
+        "title": "HoldingsEntry",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Politician": {
+            "title": "Politician",
+            "type": "string"
+          },
+          "Holdings": {
+            "title": "Holdings",
+            "type": "string"
+          },
+          "Type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Politician",
+          "Holdings",
+          "Type"
+        ]
+      },
+      "HouseTrade": {
+        "title": "HouseTrade",
+        "description": "Represents a house trade as represented by trading endpoints.",
+        "type": "object",
+        "properties": {
+          "Representative": {
+            "title": "Representative",
+            "description": "Name of Congressperson who made the transaction",
+            "type": "string"
+          },
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "description": "BioGuide ID of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "ReportDate": {
+            "title": "Reportdate",
+            "description": "Date the transaction was reported",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Date the transaction took place",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Ticker of shares transacted",
+            "type": "string"
+          },
+          "Transaction": {
+            "title": "Transaction",
+            "description": "Purchase or Sale",
+            "type": "string"
+          },
+          "Range": {
+            "title": "Range",
+            "type": "string"
+          },
+          "District": {
+            "title": "District",
+            "description": "District of the congressperson",
+            "type": "string"
+          },
+          "House": {
+            "title": "House",
+            "description": "Representatives or Senate",
+            "type": "string"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Lower bound of transaction size ($). Congressional trades are reported as a range of values, this variable is the lower bound of that range",
+            "default": 0,
+            "type": "string"
+          },
+          "Party": {
+            "title": "Party",
+            "description": "Political party of the congressperson who made the trade",
+            "type": "string"
+          },
+          "last_modified": {
+            "title": "Last Modified",
+            "description": "Date that Quiver last updated the details of this transaction",
+            "type": "string",
+            "format": "date-time"
+          },
+          "TickerType": {
+            "title": "Tickertype",
+            "description": "Reported type of asset traded. Note: CS and ST are commonly used as abbreviated for common stock",
+            "type": "string"
+          },
+          "Description": {
+            "title": "Description",
+            "description": "Transaction description",
+            "type": "string"
+          },
+          "ExcessReturn": {
+            "title": "Excessreturn",
+            "description": "Estimated return of stock compared to return of S&P 500 since the transaction date",
+            "type": "number"
+          },
+          "PriceChange": {
+            "title": "Pricechange",
+            "description": "Percentage change in stock price since the transaction date",
+            "type": "number"
+          },
+          "SPYChange": {
+            "title": "Spychange",
+            "description": "Percentage change in S&P 500 since the transaction date",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Representative",
+          "Party"
+        ]
+      },
+      "HouseTradeWithOptions": {
+        "title": "HouseTradeWithOptions",
+        "description": "Represents a house trade with additional options.",
+        "type": "object",
+        "properties": {
+          "Representative": {
+            "title": "Representative",
+            "description": "Name of Congressperson who made the transaction",
+            "type": "string"
+          },
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "description": "BioGuide ID of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "ReportDate": {
+            "title": "Reportdate",
+            "description": "Date the transaction was reported",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Date the transaction took place",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Ticker of shares transacted",
+            "type": "string"
+          },
+          "Transaction": {
+            "title": "Transaction",
+            "description": "Purchase or Sale",
+            "type": "string"
+          },
+          "Range": {
+            "title": "Range",
+            "type": "string"
+          },
+          "District": {
+            "title": "District",
+            "description": "District of the congressperson",
+            "type": "string"
+          },
+          "House": {
+            "title": "House",
+            "description": "Representatives or Senate",
+            "type": "string"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Lower bound of transaction size ($). Congressional trades are reported as a range of values, this variable is the lower bound of that range",
+            "default": 0,
+            "type": "string"
+          },
+          "party": {
+            "title": "Party",
+            "type": "string"
+          },
+          "last_modified": {
+            "title": "Last Modified",
+            "description": "Date that Quiver last updated the details of this transaction",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Type": {
+            "title": "Type",
+            "description": "Stock or Stock Option",
+            "default": "Stock",
+            "type": "string"
+          },
+          "Description": {
+            "title": "Description",
+            "description": "Transaction description",
+            "type": "string"
+          },
+          "ExcessReturn": {
+            "title": "Excessreturn",
+            "description": "Estimated return of stock compared to return of S&P 500 since the transaction date",
+            "type": "number"
+          },
+          "PriceChange": {
+            "title": "Pricechange",
+            "description": "Percentage change in stock price since the transaction date",
+            "type": "number"
+          },
+          "SPYChange": {
+            "title": "Spychange",
+            "description": "Percentage change in S&P 500 since the transaction date",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Representative"
+        ]
+      },
+      "IgnoredTicker": {
+        "title": "IgnoredTicker",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Ticker"
+        ]
+      },
+      "IgnoredTickersResponse": {
+        "title": "IgnoredTickersResponse",
+        "description": "JSON Response structure for ignored tickers endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/IgnoredTicker"
+        }
+      },
+      "Legislation": {
+        "title": "Legislation",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "bill": {
+            "title": "Bill",
+            "type": "string"
+          },
+          "updateDate": {
+            "title": "Updatedate",
+            "type": "string"
+          },
+          "updateTime": {
+            "title": "Updatetime",
+            "type": "string",
+            "format": "date-time"
+          },
+          "actionDate": {
+            "title": "Actiondate",
+            "type": "string"
+          },
+          "update": {
+            "title": "Update",
+            "type": "string"
+          },
+          "chamber": {
+            "title": "Chamber",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "congress": {
+            "title": "Congress",
+            "type": "string"
+          },
+          "lobbyists": {
+            "title": "Lobbyists",
+            "type": "string"
+          },
+          "lobbyingAmounts": {
+            "title": "Lobbyingamounts",
+            "type": "string"
+          },
+          "lobbyingCounts": {
+            "title": "Lobbyingcounts",
+            "type": "string"
+          },
+          "politicians": {
+            "title": "Politicians",
+            "type": "string"
+          },
+          "politicianTrades": {
+            "title": "Politiciantrades",
+            "type": "string"
+          },
+          "politicianTradeDates": {
+            "title": "Politiciantradedates",
+            "type": "string"
+          },
+          "politicianRoles": {
+            "title": "Politicianroles",
+            "type": "string"
+          },
+          "politicianAmounts": {
+            "title": "Politicianamounts",
+            "type": "string"
+          },
+          "politicianStocks": {
+            "title": "Politicianstocks",
+            "type": "string"
+          },
+          "pageLink": {
+            "title": "Pagelink",
+            "type": "string"
+          },
+          "billID": {
+            "title": "Billid",
+            "type": "string"
+          },
+          "uploaded": {
+            "title": "Uploaded",
+            "type": "string",
+            "format": "date-time"
+          },
+          "politicianCounts": {
+            "title": "Politiciancounts",
+            "type": "integer"
+          },
+          "ctid": {
+            "title": "Ctid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "bill",
+          "updateDate",
+          "updateTime",
+          "actionDate",
+          "update",
+          "chamber",
+          "url",
+          "congress",
+          "lobbyists",
+          "lobbyingAmounts",
+          "lobbyingCounts",
+          "politicians",
+          "politicianTrades",
+          "politicianTradeDates",
+          "politicianRoles",
+          "politicianAmounts",
+          "politicianStocks",
+          "pageLink",
+          "billID",
+          "uploaded",
+          "politicianCounts"
+        ]
+      },
+      "LiveCongressPoliticiansResponse": {
+        "title": "LiveCongressPoliticiansResponse",
+        "description": "JSON Response structure for live congress politicians endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PoliticianDetailEntry"
+        }
+      },
+      "LiveCongressViewResponse": {
+        "title": "LiveCongressViewResponse",
+        "description": "JSON Response structure for live congress view endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CongressionalTrade"
+        }
+      },
+      "LiveFlightsResponse": {
+        "title": "LiveFlightsResponse",
+        "description": "JSON Response structure for live flights endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Flight"
+        }
+      },
+      "LiveQuiverNewsEntry": {
+        "title": "LiveQuiverNewsEntry",
+        "description": "Live Quiver News entry.",
+        "type": "object",
+        "properties": {
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "datetime": {
+            "title": "Datetime",
+            "type": "string"
+          },
+          "headline": {
+            "title": "Headline",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "image": {
+            "title": "Image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "datetime"
+        ]
+      },
+      "LiveQuiverNewsResponse": {
+        "title": "LiveQuiverNewsResponse",
+        "description": "JSON Response structure for live Quiver News endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/LiveQuiverNewsEntry"
+        }
+      },
+      "LiveRSSResponse": {
+        "title": "LiveRSSResponse",
+        "description": "JSON Response structure for live rss endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/RSSData"
+        }
+      },
+      "LiveTopShareholdersResponse": {
+        "title": "LiveTopShareholdersResponse",
+        "description": "JSON Response structure for live top shareholders endpoint.",
+        "type": "object",
+        "properties": {
+          "ownership": {
+            "title": "Ownership",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopShareholdersEntry"
+            }
+          },
+          "ownership_options": {
+            "title": "Ownership Options",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TopShareholdersOptionEntry"
+            }
+          }
+        }
+      },
+      "LobbyingRecord": {
+        "title": "LobbyingRecord",
+        "description": "Lobbying information.",
+        "type": "object",
+        "properties": {
+          "Date": {
+            "title": "Date",
+            "description": "Date that the lobbying spend was reported",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Size of spending instance (USD)",
+            "type": "string"
+          },
+          "Client": {
+            "title": "Client",
+            "description": "Full name of the lobbying client",
+            "type": "string"
+          },
+          "Issue": {
+            "title": "Issue",
+            "description": "Category of legislation that is being lobbied for",
+            "type": "string"
+          },
+          "Specific_Issue": {
+            "title": "Specific Issue",
+            "description": "Specific piece of legislation being lobbied for",
+            "type": "string"
+          },
+          "Registrant": {
+            "title": "Registrant",
+            "description": "Full name of the disclosure registrant",
+            "type": "string"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Date",
+          "Registrant",
+          "Ticker"
+        ]
+      },
+      "Patent": {
+        "title": "Patent",
+        "description": "Patent information from all patents table.",
+        "type": "object",
+        "properties": {
+          "Date": {
+            "title": "Date",
+            "description": "Publication date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "IPC": {
+            "title": "Ipc",
+            "description": "The patent's IPC (International Patent Classification) code",
+            "type": "string"
+          },
+          "Title": {
+            "title": "Title",
+            "description": "Title of the patent",
+            "type": "string"
+          },
+          "Claims": {
+            "title": "Claims",
+            "description": "The number of claims listed in the given patent",
+            "type": "number"
+          },
+          "Abstract": {
+            "title": "Abstract",
+            "description": "The full-text of the patent's abstract",
+            "type": "string"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "PatentNumber": {
+            "title": "Patentnumber",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Date",
+          "Title",
+          "Claims",
+          "Ticker",
+          "PatentNumber"
+        ]
+      },
+      "PatentDrift": {
+        "title": "PatentDrift",
+        "description": "Patent drift information.",
+        "type": "object",
+        "properties": {
+          "ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "description": "Date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "drift": {
+            "title": "Drift",
+            "description": "Proprietary metric quantifying the extent of a company's recent technological changes",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ticker",
+          "date",
+          "drift"
+        ]
+      },
+      "PatentDriftResponse": {
+        "title": "PatentDriftResponse",
+        "description": "JSON Response structure for patent drift endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PatentDrift"
+        }
+      },
+      "PatentMomentum": {
+        "title": "PatentMomentum",
+        "description": "Patent drift information.",
+        "type": "object",
+        "properties": {
+          "ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "description": "Date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "momentum": {
+            "title": "Momentum",
+            "description": "Proprietary metric quantifying recent performance of a company's tech peers",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ticker",
+          "date",
+          "momentum"
+        ]
+      },
+      "PatentMomentumResponse": {
+        "title": "PatentMomentumResponse",
+        "description": "JSON Response structure for patent momentum endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/PatentMomentum"
+        }
+      },
+      "PersonalitiesResponse": {
+        "title": "PersonalitiesResponse",
+        "description": "JSON Response structure for cnbc personalities endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Personality"
+        }
+      },
+      "Personality": {
+        "title": "Personality",
+        "description": "CNBC stats model.",
+        "type": "object",
+        "properties": {
+          "Name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Name"
+        ]
+      },
+      "PoliticianDetailEntry": {
+        "title": "PoliticianDetailEntry",
+        "description": "Unified politician entry for both congress members and candidates.",
+        "type": "object",
+        "properties": {
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "type": "string"
+          },
+          "CandidateID": {
+            "title": "Candidateid",
+            "type": "string"
+          },
+          "Name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "Party": {
+            "title": "Party",
+            "type": "string"
+          },
+          "Chamber": {
+            "title": "Chamber",
+            "type": "string"
+          },
+          "State": {
+            "title": "State",
+            "type": "string"
+          },
+          "ImageURL": {
+            "title": "Imageurl",
+            "type": "string"
+          },
+          "TradeCount": {
+            "title": "Tradecount",
+            "type": "integer"
+          },
+          "TradeVolume": {
+            "title": "Tradevolume",
+            "type": "number"
+          },
+          "NetWorth": {
+            "title": "Networth",
+            "type": "number"
+          }
+        }
+      },
+      "PremiumAuthResponse": {
+        "title": "PremiumAuthResponse",
+        "description": "JSON Response structure for premium auth endpoint.",
+        "type": "object",
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/AuthData"
+          }
+        },
+        "required": [
+          "data"
+        ]
+      },
+      "RSSData": {
+        "title": "RSSData",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Dataset": {
+            "title": "Dataset",
+            "type": "string"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "Text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "URL": {
+            "title": "Url",
+            "type": "string"
+          },
+          "Time": {
+            "title": "Time",
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "Dataset",
+          "Ticker",
+          "Text",
+          "URL",
+          "Time"
+        ]
+      },
+      "RecentCNBCResponse": {
+        "title": "RecentCNBCResponse",
+        "description": "JSON Response structure for recent cnbc trades endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/CNBCTrade"
+        }
+      },
+      "RecentGovContractsAllResponse": {
+        "title": "RecentGovContractsAllResponse",
+        "description": "JSON Response structure for recent gov contracts all endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GovContractAll"
+        }
+      },
+      "RecentGovContractsResponse": {
+        "title": "RecentGovContractsResponse",
+        "description": "JSON Response structure for recent gov contracts endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/GovContract"
+        }
+      },
+      "RecentHouseViewResponse": {
+        "title": "RecentHouseViewResponse",
+        "description": "Json response structure for recent house view endpoint.",
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/HouseTradeWithOptions"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "RecentPatentsResponse": {
+        "title": "RecentPatentsResponse",
+        "description": "JSON Response structure for recent patents endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Patent"
+        }
+      },
+      "RecentSenateViewResponse": {
+        "title": "RecentSenateViewResponse",
+        "description": "Json response structure for recent senate view endpoint.",
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/SenateTrade"
+            },
+            {
+              "$ref": "#/components/schemas/SenateTradeWithOptions"
+            },
+            {
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "SEC13FChangesEntry": {
+        "title": "SEC13FChangesEntry",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Date": {
+            "title": "Date",
+            "description": "Filing date (expressed in ms since Epoch CST)",
+            "type": "string",
+            "format": "date-time"
+          },
+          "ReportPeriod": {
+            "title": "Reportperiod",
+            "description": "Reporting period end date (expressed in ms since Epoch CST)",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "Fund": {
+            "title": "Fund",
+            "description": "Name of the institution",
+            "type": "string"
+          },
+          "Change": {
+            "title": "Change",
+            "description": "Value (USD) of fund's purchases/sales over last quarter",
+            "type": "number"
+          },
+          "Change_Share": {
+            "title": "Change Share",
+            "type": "number"
+          },
+          "Change_Pct": {
+            "title": "Change Pct",
+            "type": "number"
+          },
+          "Held": {
+            "title": "Held",
+            "type": "number"
+          },
+          "Held_Normalized": {
+            "title": "Held Normalized",
+            "type": "number"
+          },
+          "Close": {
+            "title": "Close",
+            "description": "Closing price of the company's stock on the filing date",
+            "type": "number"
+          }
+        },
+        "required": [
+          "ReportPeriod",
+          "Ticker",
+          "Fund",
+          "Held",
+          "Held_Normalized"
+        ]
+      },
+      "SEC13FChangesEntryMobile": {
+        "title": "SEC13FChangesEntryMobile",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "Fund": {
+            "title": "Fund",
+            "description": "Name of the institution",
+            "type": "string"
+          },
+          "Change": {
+            "title": "Change",
+            "description": "Value (USD) of fund's purchases/sales over last quarter",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Ticker",
+          "Fund"
+        ]
+      },
+      "SEC13FChangesResponse": {
+        "title": "SEC13FChangesResponse",
+        "description": "JSON Response structure for sec13f changes endpoint.",
+        "type": "array",
+        "items": {
+          "anyOf": [
+            {
+              "$ref": "#/components/schemas/SEC13FChangesEntry"
+            },
+            {
+              "$ref": "#/components/schemas/SEC13FChangesEntryMobile"
+            }
+          ]
+        }
+      },
+      "SEC13FEntry": {
+        "title": "SEC13FEntry",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Date": {
+            "title": "Date",
+            "description": "Filing date (expressed in ms since Epoch CST)",
+            "type": "string",
+            "format": "date-time"
+          },
+          "ReportPeriod": {
+            "title": "Reportperiod",
+            "description": "Reporting period end date (expressed in ms since Epoch CST)",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Company ticker",
+            "type": "string"
+          },
+          "Fund": {
+            "title": "Fund",
+            "description": "Name of the institution",
+            "type": "string"
+          },
+          "Class": {
+            "title": "Class",
+            "description": "Text description of the holdings",
+            "type": "string"
+          },
+          "Value": {
+            "title": "Value",
+            "description": "Value (USD) of fund's position",
+            "type": "integer"
+          },
+          "Shares": {
+            "title": "Shares",
+            "description": "Number of shares held by fund",
+            "type": "integer"
+          },
+          "SH/PRN": {
+            "title": "Sh/Prn",
+            "description": "Indicates whether holdings are principal amount on debt securities",
+            "type": "string"
+          },
+          "Put/Call": {
+            "title": "Put/Call",
+            "description": "Indicates whether holdings are puts or calls",
+            "type": "string"
+          },
+          "Direction": {
+            "title": "Direction",
+            "description": "Investment discretion held by manager",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Date",
+          "Name",
+          "Fund",
+          "Value",
+          "Shares",
+          "SH/PRN",
+          "Put/Call"
+        ]
+      },
+      "SEC13FResponse": {
+        "title": "SEC13FResponse",
+        "description": "JSON Response structure for sec13f endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/SEC13FEntry"
+        }
+      },
+      "SenateTrade": {
+        "title": "SenateTrade",
+        "description": "Represents a senate trade as represented by trading endpoints.",
+        "type": "object",
+        "properties": {
+          "Senator": {
+            "title": "Senator",
+            "description": "Name of Congressperson who made the transaction",
+            "type": "string"
+          },
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "description": "BioGuide ID of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "ReportDate": {
+            "title": "Reportdate",
+            "description": "Date the transaction was reported",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Date the transaction took place",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Ticker of shares transacted",
+            "type": "string"
+          },
+          "Transaction": {
+            "title": "Transaction",
+            "description": "Purchase or Sale",
+            "type": "string"
+          },
+          "Range": {
+            "title": "Range",
+            "type": "string"
+          },
+          "District": {
+            "title": "District",
+            "description": "District of the congressperson",
+            "type": "string"
+          },
+          "House": {
+            "title": "House",
+            "description": "Representatives or Senate",
+            "type": "string"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Lower bound of transaction size ($). Congressional trades are reported as a range of values, this variable is the lower bound of that range",
+            "default": 0,
+            "type": "string"
+          },
+          "Party": {
+            "title": "Party",
+            "description": "Political party of the congressperson who made the trade",
+            "type": "string"
+          },
+          "last_modified": {
+            "title": "Last Modified",
+            "description": "Date that Quiver last updated the details of this transaction",
+            "type": "string",
+            "format": "date-time"
+          },
+          "TickerType": {
+            "title": "Tickertype",
+            "description": "Reported type of asset traded. Note: CS and ST are commonly used as abbreviated for common stock",
+            "type": "string"
+          },
+          "Description": {
+            "title": "Description",
+            "description": "Transaction description",
+            "type": "string"
+          },
+          "ExcessReturn": {
+            "title": "Excessreturn",
+            "description": "Estimated return of stock compared to return of S&P 500 since the transaction date",
+            "type": "number"
+          },
+          "PriceChange": {
+            "title": "Pricechange",
+            "description": "Percentage change in stock price since the transaction date",
+            "type": "number"
+          },
+          "SPYChange": {
+            "title": "Spychange",
+            "description": "Percentage change in S&P 500 since the transaction date",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Senator",
+          "Party"
+        ]
+      },
+      "SenateTradeWithOptions": {
+        "title": "SenateTradeWithOptions",
+        "description": "Represents a senate trade with additional options.",
+        "type": "object",
+        "properties": {
+          "Senator": {
+            "title": "Senator",
+            "description": "Name of Congressperson who made the transaction",
+            "type": "string"
+          },
+          "BioGuideID": {
+            "title": "Bioguideid",
+            "description": "BioGuide ID of the congressperson who made the transaction",
+            "type": "string"
+          },
+          "ReportDate": {
+            "title": "Reportdate",
+            "description": "Date the transaction was reported",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Date": {
+            "title": "Date",
+            "description": "Date the transaction took place",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Ticker": {
+            "title": "Ticker",
+            "description": "Ticker of shares transacted",
+            "type": "string"
+          },
+          "Transaction": {
+            "title": "Transaction",
+            "description": "Purchase or Sale",
+            "type": "string"
+          },
+          "Range": {
+            "title": "Range",
+            "type": "string"
+          },
+          "District": {
+            "title": "District",
+            "description": "District of the congressperson",
+            "type": "string"
+          },
+          "House": {
+            "title": "House",
+            "description": "Representatives or Senate",
+            "type": "string"
+          },
+          "Amount": {
+            "title": "Amount",
+            "description": "Lower bound of transaction size ($). Congressional trades are reported as a range of values, this variable is the lower bound of that range",
+            "default": 0,
+            "type": "string"
+          },
+          "Party": {
+            "title": "Party",
+            "description": "Political party of the congressperson who made the trade",
+            "type": "string"
+          },
+          "last_modified": {
+            "title": "Last Modified",
+            "description": "Date that Quiver last updated the details of this transaction",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Type": {
+            "title": "Type",
+            "description": "Stock or Stock Option",
+            "default": "Stock",
+            "type": "string"
+          },
+          "Description": {
+            "title": "Description",
+            "description": "Transaction description",
+            "type": "string"
+          },
+          "ExcessReturn": {
+            "title": "Excessreturn",
+            "description": "Estimated return of stock compared to return of S&P 500 since the transaction date",
+            "type": "number"
+          },
+          "PriceChange": {
+            "title": "Pricechange",
+            "description": "Percentage change in stock price since the transaction date",
+            "type": "number"
+          },
+          "SPYChange": {
+            "title": "Spychange",
+            "description": "Percentage change in S&P 500 since the transaction date",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Senator",
+          "Party"
+        ]
+      },
+      "StrategyHoldings": {
+        "title": "StrategyHoldings",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Strategy": {
+            "title": "Strategy",
+            "type": "string"
+          },
+          "Date": {
+            "title": "Date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Holdings": {
+            "title": "Holdings",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Strategy",
+          "Date",
+          "Holdings"
+        ]
+      },
+      "StrategyHoldingsInfrequent": {
+        "title": "StrategyHoldingsInfrequent",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Strategy": {
+            "title": "Strategy",
+            "type": "string"
+          },
+          "Date": {
+            "title": "Date",
+            "type": "string",
+            "format": "date-time"
+          },
+          "Holdings": {
+            "title": "Holdings",
+            "type": "string"
+          },
+          "Upload_Date": {
+            "title": "Upload Date",
+            "type": "string"
+          },
+          "Rebalance_Date": {
+            "title": "Rebalance Date",
+            "type": "string"
+          }
+        },
+        "required": [
+          "Strategy",
+          "Date",
+          "Holdings",
+          "Upload_Date",
+          "Rebalance_Date"
+        ]
+      },
+      "StrategyHoldingsInfrequentResponse": {
+        "title": "StrategyHoldingsInfrequentResponse",
+        "description": "JSON Response structure for strategy holdings endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/StrategyHoldingsInfrequent"
+        }
+      },
+      "StrategyHoldingsResponse": {
+        "title": "StrategyHoldingsResponse",
+        "description": "JSON Response structure for strategy holdings endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/StrategyHoldings"
+        }
+      },
+      "TickerData": {
+        "title": "TickerData",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "wsbMentionsWeekly": {
+            "title": "Wsbmentionsweekly",
+            "type": "number"
+          },
+          "wiki_change": {
+            "title": "Wiki Change",
+            "type": "number"
+          },
+          "twitter_change": {
+            "title": "Twitter Change",
+            "type": "number"
+          },
+          "congressBought": {
+            "title": "Congressbought",
+            "type": "boolean"
+          },
+          "congressSold": {
+            "title": "Congresssold",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "Ticker"
+        ]
+      },
+      "TickerDataResponse": {
+        "title": "TickerDataResponse",
+        "description": "JSON Response structure for ticker data endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TickerData"
+        }
+      },
+      "TodayDPViewResponse": {
+        "title": "TodayDPViewResponse",
+        "description": "JSON Response structure for today lobbying endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/DPShortRecord"
+        }
+      },
+      "TodayEventBeta": {
+        "title": "TodayEventBeta",
+        "description": "Base pydantic model used to hold standard config.",
+        "type": "object",
+        "properties": {
+          "Ticker": {
+            "title": "Ticker",
+            "type": "string"
+          },
+          "FirstEventBeta": {
+            "title": "Firsteventbeta",
+            "type": "number"
+          },
+          "FirstEventOdds": {
+            "title": "Firsteventodds",
+            "type": "number"
+          },
+          "EventName": {
+            "title": "Eventname",
+            "default": "PresidentialElection2020",
+            "type": "string"
+          },
+          "FirstEventName": {
+            "title": "Firsteventname",
+            "default": "TrumpVictory",
+            "type": "string"
+          },
+          "SecondEventName": {
+            "title": "Secondeventname",
+            "default": "BidenVictory",
+            "type": "string"
+          },
+          "SecondEventBeta": {
+            "title": "Secondeventbeta",
+            "type": "number"
+          },
+          "SecondEventOdds": {
+            "title": "Secondeventodds",
+            "type": "number"
+          }
+        },
+        "required": [
+          "Ticker",
+          "FirstEventOdds"
+        ]
+      },
+      "TodayEventsBetaResponse": {
+        "title": "TodayEventsBetaResponse",
+        "description": "JSON Response structure for today events beta endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/TodayEventBeta"
+        }
+      },
+      "TodayLegislationResponse": {
+        "title": "TodayLegislationResponse",
+        "description": "JSON Response structure for recent legislation endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Legislation"
+        }
+      },
+      "TodayLobbyingResponse": {
+        "title": "TodayLobbyingResponse",
+        "description": "JSON Response structure for today lobbying endpoint.",
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/LobbyingRecord"
+        }
+      },
+      "TokenCreate": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          }
+        }
+      },
+      "TopShareholdersEntry": {
+        "title": "TopShareholdersEntry",
+        "description": "Top shareholders entry.",
+        "type": "object",
+        "properties": {
+          "owner_name": {
+            "title": "Owner Name",
+            "type": "string"
+          },
+          "owner_title": {
+            "title": "Owner Title",
+            "type": "string"
+          },
+          "shares": {
+            "title": "Shares",
+            "type": "integer"
+          }
+        }
+      },
+      "TopShareholdersOptionEntry": {
+        "title": "TopShareholdersOptionEntry",
+        "description": "Top shareholders option entry.",
+        "type": "object",
+        "properties": {
+          "owner_name": {
+            "title": "Owner Name",
+            "type": "string"
+          },
+          "owner_title": {
+            "title": "Owner Title",
+            "type": "string"
+          },
+          "option_type": {
+            "title": "Option Type",
+            "type": "string"
+          },
+          "underlying_shares": {
+            "title": "Underlying Shares",
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "WebPlatformTokenAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://api.quiverquant.com"
+    }
+  ],
+  "tags": [
+    {
+      "name": "enterprise",
+      "description": "enterprise endpoint"
+    },
+    {
+      "name": "internal",
+      "description": "internal endpoint"
+    },
+    {
+      "name": "mobile",
+      "description": "mobile endpoint"
+    },
+    {
+      "name": "public",
+      "description": "public endpoint"
+    },
+    {
+      "name": "Tier 1",
+      "description": "tier 1 endpoint"
+    },
+    {
+      "name": "Tier 2",
+      "description": "tier 2 endpoint"
+    }
+  ]
+}

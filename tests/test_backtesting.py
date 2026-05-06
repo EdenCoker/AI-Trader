@@ -21,6 +21,7 @@ from ai_trader.domain.events import (
     ThirteenFPositionChange,
     TransactionType,
 )
+from ai_trader.domain.signals import Signal, SignalBundle, SignalDirection
 
 
 def test_polygon_loader_uses_cache_on_second_call(tmp_path: Path):
@@ -82,12 +83,12 @@ def test_stress_monte_carlo_shape_and_positive_sanity():
     assert result.prob_ruin == 0.0
 
 
-def _trade(disclosure: date) -> CongressionalTrade:
+def _trade(disclosure: date, ticker: str = "MSFT") -> CongressionalTrade:
     return CongressionalTrade(
         member_name="Jane Senator",
         chamber=Chamber.SENATE,
-        ticker="MSFT",
-        issuer="Microsoft Corp.",
+        ticker=ticker,
+        issuer=f"{ticker} Corp.",
         sector="technology",
         transaction_date=date(2022, 1, 1),
         disclosure_date=disclosure,
@@ -100,7 +101,10 @@ def _trade(disclosure: date) -> CongressionalTrade:
 def test_event_replay_filters_by_effective_date_not_transaction_date():
     replay = EventReplay(
         [
-            ReplayEvent(event_type="congressional_trade", congressional_trade=_trade(date(2022, 1, 10))),
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2022, 1, 10)),
+            ),
         ]
     )
 
@@ -110,7 +114,10 @@ def test_event_replay_filters_by_effective_date_not_transaction_date():
 
 def test_event_replay_jsonl_roundtrip(tmp_path: Path):
     path = tmp_path / "events.jsonl"
-    event = ReplayEvent(event_type="congressional_trade", congressional_trade=_trade(date(2022, 1, 10)))
+    event = ReplayEvent(
+        event_type="congressional_trade",
+        congressional_trade=_trade(date(2022, 1, 10)),
+    )
     path.write_text(event.model_dump_json() + "\n", encoding="utf-8")
 
     replay = EventReplay.from_jsonl(path)
@@ -119,26 +126,61 @@ def test_event_replay_jsonl_roundtrip(tmp_path: Path):
     assert replay.events[0].effective_date == date(2022, 1, 10)
 
 
+def test_event_replay_discovers_tickers_in_date_range():
+    replay = EventReplay(
+        [
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2022, 1, 10), ticker="MSFT"),
+            ),
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2022, 2, 10), ticker="AAPL"),
+            ),
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2023, 1, 10), ticker="NVDA"),
+            ),
+        ]
+    )
+
+    assert replay.tickers(start=date(2022, 1, 1), end=date(2022, 12, 31)) == ("AAPL", "MSFT")
+
+
 def test_walk_forward_engine_uses_replay_events_without_lookahead():
     class FakeLoader:
         def load_ohlcv(self, ticker, start, end, timespan="day"):
             return pd.DataFrame(
                 [
-                    {"date": date(2022, 1, day), "open": 100 + day, "high": 0, "low": 0, "close": 101 + day, "volume": 1, "vwap": 0}
+                    {
+                        "date": date(2022, 1, day),
+                        "open": 100 + day,
+                        "high": 0,
+                        "low": 0,
+                        "close": 101 + day,
+                        "volume": 1,
+                        "vwap": 0,
+                    }
                     for day in range(6, 14)
                 ]
             )
 
     replay = EventReplay(
         [
-            ReplayEvent(event_type="congressional_trade", congressional_trade=_trade(date(2022, 1, 8))),
-            ReplayEvent(event_type="congressional_trade", congressional_trade=_trade(date(2022, 1, 20))),
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2022, 1, 8)),
+            ),
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2022, 1, 20)),
+            ),
         ]
     )
     engine = WalkForwardEngine(data_loader=FakeLoader(), replay=replay)
 
     result = engine.run(
-        ["MSFT"],
+        None,
         date(2022, 1, 1),
         date(2022, 1, 15),
         WalkForwardConfig(
@@ -147,12 +189,146 @@ def test_walk_forward_engine_uses_replay_events_without_lookahead():
             step_days=8,
             signal_threshold=0.01,
             max_holding_days=2,
+            cash_fraction=1.0,
         ),
     )
 
     assert result.metadata["mode"] == "event_replay"
+    assert result.metadata["ticker_source"] == "events"
+    assert result.tickers == ("MSFT",)
     assert len(result.trades) == 1
     assert result.trades[0].entry_date == date(2022, 1, 9)
+
+
+def test_walk_forward_engine_applies_stop_loss_to_event_trades():
+    class FakeLoader:
+        def load_ohlcv(self, ticker, start, end, timespan="day"):
+            return pd.DataFrame(
+                [
+                    {
+                        "date": date(2022, 1, 9),
+                        "open": 100,
+                        "high": 101,
+                        "low": 94,
+                        "close": 96,
+                        "volume": 1,
+                        "vwap": 0,
+                    },
+                    {
+                        "date": date(2022, 1, 10),
+                        "open": 96,
+                        "high": 97,
+                        "low": 95,
+                        "close": 96,
+                        "volume": 1,
+                        "vwap": 0,
+                    },
+                ]
+            )
+
+    replay = EventReplay(
+        [
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2022, 1, 8)),
+            )
+        ]
+    )
+    result = WalkForwardEngine(data_loader=FakeLoader(), replay=replay).run(
+        None,
+        date(2022, 1, 1),
+        date(2022, 1, 15),
+        WalkForwardConfig(
+            train_window_days=5,
+            test_window_days=8,
+            step_days=8,
+            signal_threshold=0.01,
+            stop_loss_pct=0.05,
+        ),
+    )
+
+    assert result.trades[0].exit_reason == "stop_loss"
+    assert result.trades[0].pnl_pct == pytest.approx(-0.05)
+
+
+def test_walk_forward_engine_sizes_trades_from_starting_balance():
+    class FakeLoader:
+        def load_ohlcv(self, ticker, start, end, timespan="day"):
+            return pd.DataFrame(
+                [
+                    {
+                        "date": date(2022, 1, 9),
+                        "open": 100,
+                        "high": 101,
+                        "low": 99,
+                        "close": 100,
+                        "volume": 1,
+                        "vwap": 0,
+                    },
+                    {
+                        "date": date(2022, 1, 10),
+                        "open": 100,
+                        "high": 111,
+                        "low": 99,
+                        "close": 110,
+                        "volume": 1,
+                        "vwap": 0,
+                    },
+                ]
+            )
+
+    class FakeScorer:
+        def build_bundle(self, ticker, as_of, congressional_trades, institutional_changes):
+            return SignalBundle(
+                ticker=ticker,
+                as_of=as_of,
+                signals=(
+                    Signal(
+                        name="test_signal",
+                        ticker=ticker,
+                        direction=SignalDirection.LONG,
+                        strength=1.0,
+                        confidence=1.0,
+                        effective_date=as_of,
+                        horizon_days=1,
+                    ),
+                ),
+            )
+
+    replay = EventReplay(
+        [
+            ReplayEvent(
+                event_type="congressional_trade",
+                congressional_trade=_trade(date(2022, 1, 8)),
+            )
+        ]
+    )
+    result = WalkForwardEngine(
+        data_loader=FakeLoader(),
+        replay=replay,
+        scorer=FakeScorer(),
+    ).run(
+        None,
+        date(2022, 1, 1),
+        date(2022, 1, 15),
+        WalkForwardConfig(
+            train_window_days=5,
+            test_window_days=8,
+            step_days=8,
+            signal_threshold=0.01,
+            starting_balance=1_000,
+            cash_fraction=0.5,
+        ),
+    )
+
+    trade = result.trades[0]
+    assert trade.quantity == 5
+    assert trade.notional == pytest.approx(500)
+    assert trade.pnl_amount == pytest.approx(50)
+    assert trade.account_return == pytest.approx(0.05)
+    assert trade.balance_before == pytest.approx(1_000)
+    assert trade.balance_after == pytest.approx(1_050)
+    assert result.metadata["ending_balance"] == pytest.approx(1_050)
 
 
 def test_event_replay_splits_13f_changes():

@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 from ai_trader.config import AppSettings, get_settings
-from ai_trader.broker.contracts import BrokerOrder, BrokerOrderResult, BrokerPosition, OrderSide, OrderType
+from ai_trader.broker.contracts import (
+    BrokerAccountSnapshot,
+    BrokerOrder,
+    BrokerOrderResult,
+    BrokerPosition,
+    BrokerQuote,
+    OrderType,
+)
 from ai_trader.broker.errors import BrokerConfigurationError, BrokerConnectionError
 
 try:
@@ -85,6 +93,53 @@ class IBKRBroker:
         if self._ib.isConnected():
             self._ib.disconnect()
 
+    def account_snapshot(self, currency: str = "USD") -> BrokerAccountSnapshot:
+        if not self._ib.isConnected():
+            raise BrokerConnectionError("IBKR is not connected")
+
+        values = self._account_summary_values()
+        account = self._connection.account or _first_account(values)
+        return BrokerAccountSnapshot(
+            account=account,
+            currency=currency,
+            available_funds=_read_account_value(values, "AvailableFunds", currency, account),
+            buying_power=_read_account_value(values, "BuyingPower", currency, account),
+            net_liquidation=_read_account_value(values, "NetLiquidation", currency, account),
+            cash_balance=_read_account_value(values, "TotalCashValue", currency, account),
+        )
+
+    def market_price(self, ticker: str, currency: str = "USD") -> BrokerQuote:
+        if not self._ib.isConnected():
+            raise BrokerConnectionError("IBKR is not connected")
+
+        contract = Stock(ticker.upper(), "SMART", currency)
+        try:
+            qualified = self._ib.qualifyContracts(contract)
+        except Exception as exc:
+            raise BrokerConnectionError(f"IBKR contract qualification failed: {exc}") from exc
+        if not qualified:
+            raise BrokerConnectionError(f"IBKR could not qualify contract for {ticker}")
+
+        contract = qualified[0]
+        ib_ticker = None
+        try:
+            ib_ticker = self._ib.reqMktData(contract, "", False, False)
+            self._ib.sleep(1.0)
+            price = _read_ticker_price(ib_ticker)
+        except Exception as exc:
+            message = f"IBKR market data request failed for {ticker}: {exc}"
+            raise BrokerConnectionError(message) from exc
+        finally:
+            if ib_ticker is not None:
+                try:
+                    self._ib.cancelMktData(contract)
+                except Exception:
+                    pass
+
+        if price is None:
+            price = self._last_historical_close(contract, ticker)
+        return BrokerQuote(ticker=ticker.upper(), price=price, currency=currency)
+
     def positions(self) -> tuple[BrokerPosition, ...]:
         if not self._ib.isConnected():
             raise BrokerConnectionError("IBKR is not connected")
@@ -124,11 +179,45 @@ class IBKRBroker:
         return BrokerOrderResult(
             order_id=getattr(trade.order, "orderId", None),
             status=status,
-            filled=float(trade.orderStatus.filled) if trade.orderStatus.filled is not None else None,
+            filled=(
+                float(trade.orderStatus.filled)
+                if trade.orderStatus.filled is not None
+                else None
+            ),
             avg_fill_price=float(trade.orderStatus.avgFillPrice)
             if trade.orderStatus.avgFillPrice is not None
             else None,
         )
+
+    def _account_summary_values(self):
+        try:
+            return self._ib.accountSummary(account=self._connection.account or "")
+        except TypeError:
+            return self._ib.accountSummary()
+        except Exception as exc:
+            raise BrokerConnectionError(f"IBKR account summary failed: {exc}") from exc
+
+    def _last_historical_close(self, contract, ticker: str) -> float:
+        try:
+            bars = self._ib.reqHistoricalData(
+                contract,
+                endDateTime="",
+                durationStr="2 D",
+                barSizeSetting="1 day",
+                whatToShow="TRADES",
+                useRTH=True,
+                formatDate=1,
+            )
+        except Exception as exc:
+            raise BrokerConnectionError(
+                f"IBKR historical price fallback failed for {ticker}: {exc}"
+            ) from exc
+        if not bars:
+            raise BrokerConnectionError(f"IBKR did not return a usable price for {ticker}")
+        price = _finite_positive(getattr(bars[-1], "close", None))
+        if price is None:
+            raise BrokerConnectionError(f"IBKR did not return a usable price for {ticker}")
+        return price
 
 
 def _to_ib_order(order: BrokerOrder):
@@ -142,3 +231,58 @@ def _to_ib_order(order: BrokerOrder):
         return LimitOrder(action, qty, order.limit_price)
     raise BrokerConfigurationError(f"Unsupported order_type: {order.order_type}")
 
+
+def _first_account(values) -> str | None:
+    for item in values:
+        account = str(getattr(item, "account", "") or "").strip()
+        if account:
+            return account
+    return None
+
+
+def _read_account_value(values, tag: str, currency: str, account: str | None) -> float:
+    for item in values:
+        item_tag = str(getattr(item, "tag", "") or "")
+        item_currency = str(getattr(item, "currency", "") or "")
+        item_account = str(getattr(item, "account", "") or "")
+        if item_tag != tag:
+            continue
+        if currency and item_currency and item_currency.upper() != currency.upper():
+            continue
+        if account and item_account and item_account != account:
+            continue
+        value = _finite_positive(getattr(item, "value", None))
+        if value is not None:
+            return value
+    return 0.0
+
+
+def _read_ticker_price(ib_ticker) -> float | None:
+    try:
+        value = ib_ticker.marketPrice()
+        price = _finite_positive(value)
+        if price is not None:
+            return price
+    except Exception:
+        pass
+
+    bid = _finite_positive(getattr(ib_ticker, "bid", None))
+    ask = _finite_positive(getattr(ib_ticker, "ask", None))
+    if bid is not None and ask is not None:
+        return (bid + ask) / 2.0
+
+    for attr in ("last", "close"):
+        price = _finite_positive(getattr(ib_ticker, attr, None))
+        if price is not None:
+            return price
+    return None
+
+
+def _finite_positive(value) -> float | None:
+    try:
+        numeric = float(str(value).replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+    if math.isfinite(numeric) and numeric > 0:
+        return numeric
+    return None

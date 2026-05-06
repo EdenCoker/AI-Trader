@@ -10,7 +10,7 @@ This repository currently implements the core research spine:
 - a smart-money scorer with explicit no-lookahead checks
 - tests for disclosure-date and 13F filing-date guardrails
 - a LangChain-core 3-stage narrative/news analyzer (structured JSON outputs)
-- an IBKR (TWS/IB Gateway) broker adapter for positions/orders
+- an IBKR (TWS/IB Gateway) broker adapter for balances, quotes, positions, and orders
 - a reflexivity psychology state machine and social velocity signal
 - a trader RAG memory feeding the Final Reasoner
 - local training from closed trade outcomes to calibrate conviction and sizing
@@ -36,15 +36,27 @@ For the full operator setup, software list, API-key locations, IBKR config, loca
 
 ```powershell
 ai-trader status
+ai-trader gui
 ai-trader analyze-news --ticker AAPL --headline "..." --body-file .\\news.txt
 ai-trader ibkr-positions
 ai-trader reason --bundle-file .\\examples\\sample_signal_bundle.json
 ai-trader train local --examples-file .\\examples\\sample_training_examples.jsonl --model-out data\\models\\local_calibrator.json
+ai-trader train backtest --examples-file logs\\training_examples.jsonl --start-date 2025-01-01 --output logs\\training_backtest_recent.json
 ai-trader rag-index
-ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --events-file .\\examples\\sample_events.jsonl --out result.json
+ai-trader backtest run --start 2022-01-01 --end 2024-12-31 --events-file .\\examples\\sample_events.jsonl --starting-balance 10000 --cash-fraction 0.02 --out result.json
 ai-trader backtest monte-carlo --result-file result.json --n-sims 10000
 ai-trader review-nightly --outcomes-file outcomes.jsonl
 ```
+
+## Local GUI
+
+Run the browser console for common operator actions:
+
+```powershell
+ai-trader gui
+```
+
+It opens at `http://127.0.0.1:8787` and triggers the same whitelisted CLI workflows: status, news analysis, final reasoning, local training, RAG, IBKR positions, trade-plan execution, backtests, Monte Carlo, review, build loop, autopilot, and bridge startup.
 
 ## Phase Map
 
@@ -83,6 +95,15 @@ The LLM layer is pluggable. Select at runtime with environment variables:
 ## IBKR Notes
 
 IBKR requires Trader Workstation (TWS) or IB Gateway running with API access enabled. Use `AI_TRADER_TRADING_MODE=paper` by default and only set `AI_TRADER_ALLOW_LIVE_TRADING=true` when you intentionally want live execution.
+
+Trade execution no longer requires you to choose a ticker size manually. Omit `--shares`
+and the order is sized from available account funds, the plan conviction, and
+`--cash-fraction`. Use `--starting-balance` as a risk-budget cap, or for dry-run sizing
+with `--reference-price`.
+
+```powershell
+ai-trader trade --plan-file .\\logs\\trade_plan.json --dry-run --starting-balance 10000 --reference-price 400
+```
 
 ## Trader RAG (Upgrade)
 

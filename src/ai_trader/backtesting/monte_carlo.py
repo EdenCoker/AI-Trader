@@ -16,6 +16,9 @@ class MonteCarloResult:
     max_drawdown_p95: float
     cvar_95: float
     prob_ruin: float
+    terminal_return_p5: float = 0.0
+    terminal_return_p50: float = 0.0
+    terminal_return_p95: float = 0.0
 
 
 class StressMonteCarlo:
@@ -58,5 +61,7 @@ class StressMonteCarlo:
             max_drawdown_p95=float(np.percentile(drawdowns, 95)),
             cvar_95=cvar(terminal_returns, alpha=0.05),
             prob_ruin=float(np.mean(drawdowns > 0.50)),
+            terminal_return_p5=float(np.percentile(terminal_returns, 5)),
+            terminal_return_p50=float(np.percentile(terminal_returns, 50)),
+            terminal_return_p95=float(np.percentile(terminal_returns, 95)),
         )
-

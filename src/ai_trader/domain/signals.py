@@ -26,6 +26,7 @@ class Signal(BaseModel):
 
     name: str
     ticker: str
+    source: str | None = None
     direction: SignalDirection
     strength: float = Field(ge=0, le=1)
     confidence: float = Field(default=0.5, ge=0, le=1)
@@ -78,4 +79,3 @@ class SignalBundle(BaseModel):
         if self.combined_strength < -0.05:
             return SignalDirection.SHORT
         return SignalDirection.NEUTRAL
-

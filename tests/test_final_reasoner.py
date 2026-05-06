@@ -62,7 +62,7 @@ def test_final_reasoner_parses_trade_plan():
         """
     )
 
-    plan = FinalReasoner(llm=llm).reason(ticker="MSFT", as_of=date(2026, 4, 30), bundle=bundle)
+    plan = FinalReasoner(llm=llm, settings=AppSettings(local_training_enabled=False)).reason(ticker="MSFT", as_of=date(2026, 4, 30), bundle=bundle)
 
     assert plan.direction is SignalDirection.LONG
     assert plan.conviction == pytest.approx(0.62)
@@ -85,7 +85,7 @@ def test_final_reasoner_extracts_wrapped_json():
         '"thesis":["insufficient edge"]'
         "}"
     )
-    plan = FinalReasoner(llm=llm).reason(ticker="AAPL", as_of=date(2026, 4, 30), bundle=bundle)
+    plan = FinalReasoner(llm=llm, settings=AppSettings(local_training_enabled=False)).reason(ticker="AAPL", as_of=date(2026, 4, 30), bundle=bundle)
     assert plan.direction is SignalDirection.NEUTRAL
 
 

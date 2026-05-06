@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ai_trader.domain.signals import SignalBundle, SignalDirection
 from ai_trader.intelligence.models import NarrativeIntelligence
-from ai_trader.intelligence.trade_plan import TradePlan
+from ai_trader.intelligence.trade_plan import HorizonClass, TradePlan
 from ai_trader.training.data import LocalTrainingExample
 from ai_trader.training.features import FEATURE_NAMES, extract_features
 
@@ -32,7 +32,11 @@ class LocalCalibratorModel(BaseModel):
         plan: TradePlan,
         narrative: NarrativeIntelligence | None = None,
     ) -> float:
-        features = extract_features(bundle=bundle, plan=plan, narrative=narrative)
+        features = _features_for_model(
+            self.feature_names,
+            extract_features(bundle=bundle, plan=plan, narrative=narrative),
+            expected_length=len(self.feature_mean),
+        )
         normalized = (features - np.asarray(self.feature_mean)) / np.asarray(self.feature_std)
         return float(np.dot(normalized, np.asarray(self.coefficients)) + self.intercept)
 
@@ -137,6 +141,36 @@ class LocalCalibratorTrainer:
                 "target_mean": float(np.mean(y)),
             },
         )
+
+
+def filter_examples_by_horizon(
+    examples: tuple[LocalTrainingExample, ...],
+    horizon: HorizonClass,
+) -> tuple[LocalTrainingExample, ...]:
+    return tuple(
+        example
+        for example in examples
+        if example.trade_plan.horizon_class == horizon
+    )
+
+
+def _features_for_model(
+    feature_names: tuple[str, ...],
+    current_features: np.ndarray,
+    *,
+    expected_length: int,
+) -> np.ndarray:
+    if feature_names == FEATURE_NAMES and expected_length == len(current_features):
+        return current_features
+    by_name = dict(zip(FEATURE_NAMES, current_features, strict=False))
+    features = np.asarray([by_name.get(name, 0.0) for name in feature_names], dtype=float)
+    if len(features) == expected_length:
+        return features
+    if expected_length <= len(current_features):
+        return current_features[:expected_length]
+    padded = np.zeros(expected_length, dtype=float)
+    padded[: len(current_features)] = current_features
+    return padded
 
 
 def _max_conviction_from_expected_pnl(expected_pnl: float) -> float:

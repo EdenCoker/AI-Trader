@@ -128,6 +128,39 @@ class AppSettings(BaseModel):
             _env("AI_TRADER_LOCAL_CALIBRATOR_PATH", "data/models/local_calibrator.json") or ""
         )
     )
+    local_calibrator_short_path: Path = Field(
+        default_factory=lambda: Path(
+            _env(
+                "AI_TRADER_LOCAL_CALIBRATOR_SHORT_PATH",
+                "data/models/local_calibrator_short.json",
+            )
+            or ""
+        )
+    )
+    local_calibrator_medium_path: Path = Field(
+        default_factory=lambda: Path(
+            _env(
+                "AI_TRADER_LOCAL_CALIBRATOR_MEDIUM_PATH",
+                "data/models/local_calibrator_medium.json",
+            )
+            or ""
+        )
+    )
+    local_calibrator_long_path: Path = Field(
+        default_factory=lambda: Path(
+            _env(
+                "AI_TRADER_LOCAL_CALIBRATOR_LONG_PATH",
+                "data/models/local_calibrator_long.json",
+            )
+            or ""
+        )
+    )
+    fmp_base_url: str = Field(
+        default_factory=lambda: _env(
+            "FMP_BASE_URL", "https://financialmodelingprep.com/api/v3"
+        )
+        or "https://financialmodelingprep.com/api/v3"
+    )
 
     ibkr_host: str = Field(default_factory=lambda: _env("IBKR_HOST", "127.0.0.1") or "127.0.0.1")
     ibkr_port: int = Field(default_factory=lambda: _env_int("IBKR_PORT", 7497))

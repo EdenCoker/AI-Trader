@@ -184,14 +184,72 @@ The output `guardrails` field will include the local calibrator's expected P&L a
 
 ```powershell
 ai-trader status
+ai-trader gui
 ai-trader analyze-news --ticker MSFT --headline "Earnings beat" --body-file .\examples\sample_news.txt
 ai-trader reason --bundle-file .\examples\sample_signal_bundle.json
 ai-trader train local --examples-file .\examples\sample_training_examples.jsonl --model-out data\models\local_calibrator.json
+ai-trader train backtest --examples-file logs\training_examples.jsonl --start-date 2025-01-01 --output logs\training_backtest_recent.json
 ai-trader ibkr-positions
-ai-trader backtest run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --events-file .\examples\sample_events.jsonl --out result.json
+ai-trader backtest run --start 2022-01-01 --end 2024-12-31 --events-file .\examples\sample_events.jsonl --starting-balance 10000 --cash-fraction 0.02 --out result.json
 ai-trader backtest monte-carlo --result-file result.json --n-sims 10000
 ai-trader review-nightly --outcomes-file outcomes.jsonl
 ```
+
+## Local GUI
+
+Launch the browser console:
+
+```powershell
+ai-trader gui
+```
+
+Open this URL if the browser does not open automatically:
+
+```text
+http://127.0.0.1:8787
+```
+
+The GUI can run:
+
+- status
+- news analysis
+- final reasoning
+- local training
+- RAG indexing/querying
+- IBKR position checks
+- trade-plan dry runs/orders sized from account balance or a stated starting balance
+- backtests and Monte Carlo
+- nightly review and build loop
+- one-cycle autopilot runs
+- background bridge server startup
+
+Trade actions still use the same `.env`, IBKR, and live-trading safety gates as the CLI.
+Leave Shares blank to let the bot size from balance. Use Starting Balance as a simulated
+capital/risk budget for dry runs and backtests.
+
+## Balance-Based Trading
+
+Order size is automatic when `--shares` is omitted. The bot reads IBKR available funds,
+gets a reference price, and sizes the order from:
+
+```text
+available balance * cash fraction * plan conviction * plan size multiplier
+```
+
+For dry runs without connecting to IBKR market data, state the starting balance and
+reference price:
+
+```powershell
+ai-trader trade `
+  --plan-file .\logs\trade_plan.json `
+  --starting-balance 10000 `
+  --reference-price 400 `
+  --cash-fraction 0.02 `
+  --dry-run
+```
+
+For paper/live execution, omit `--reference-price` so IBKR supplies the quote. If you pass
+`--starting-balance`, it acts as a cap on the broker balance used for sizing.
 
 ## Historical Event Replay
 
@@ -199,12 +257,17 @@ Backtests can consume look-ahead-safe smart-money events from JSONL:
 
 ```powershell
 ai-trader backtest run `
-  --tickers MSFT `
   --start 2022-01-01 `
   --end 2022-12-31 `
   --events-file .\examples\sample_events.jsonl `
+  --starting-balance 10000 `
+  --cash-fraction 0.02 `
   --out result.json
 ```
+
+When `--tickers` is omitted, the backtest automatically derives the ticker universe from
+the replay events available in the selected date range. Use `--tickers` only when you want
+to explicitly override or limit that universe.
 
 Each line in the event file is one `ReplayEvent`. Supported `event_type` values:
 
@@ -212,6 +275,47 @@ Each line in the event file is one `ReplayEvent`. Supported `event_type` values:
 - `13f_change`: contains a `thirteen_f_change` payload matching the `ThirteenFPositionChange` model. Its usable date is `current.filing_date`.
 
 The replay loader only exposes events with `effective_date <= current_replay_date`. This is the core no-look-ahead guard for backtests.
+
+Backtest risk controls are configurable:
+
+```powershell
+ai-trader backtest run `
+  --start 2022-01-01 `
+  --end 2022-12-31 `
+  --events-file .\examples\sample_events.jsonl `
+  --train-window-days 0 `
+  --test-window-days 364 `
+  --step-days 364 `
+  --max-holding-days 30 `
+  --stop-loss-pct 0.08 `
+  --take-profit-pct 0.20 `
+  --starting-balance 25000 `
+  --cash-fraction 0.05 `
+  --out logs\event_backtest_result_risk.json
+```
+
+Backtest results include per-trade `quantity`, `notional`, `pnl_amount`,
+`balance_before`, `balance_after`, and `account_return`, plus starting and ending
+balances in metadata.
+
+## Training Strategy Backtest
+
+The local training backtest searches deterministic policy rules over your historical
+`LocalTrainingExample` JSONL and ranks them by monthly equal-weight P&L, Sharpe, drawdown,
+and sample coverage:
+
+```powershell
+ai-trader train backtest `
+  --examples-file logs\training_examples.jsonl `
+  --start-date 2025-01-01 `
+  --min-trades 50 `
+  --min-active-months 3 `
+  --min-trades-per-month 5 `
+  --output logs\training_backtest_recent.json
+```
+
+Use `--split-date YYYY-MM-DD` to include train/test metrics. Treat high P&L with sparse
+months or no out-of-sample coverage as a research lead, not an execution rule.
 
 ## C++ Bridge
 
@@ -241,7 +345,7 @@ GitHub PR generation requires:
 Run locally:
 
 ```powershell
-ai-trader build-loop run --tickers AAPL --tickers MSFT --start 2022-01-01 --end 2024-12-31 --max-proposals 2
+ai-trader build-loop run --start 2022-01-01 --end 2024-12-31 --events-file .\examples\sample_events.jsonl --max-proposals 2
 ```
 
 The workflow file `.github/workflows/build_loop.yml` runs the same cycle nightly in GitHub Actions.

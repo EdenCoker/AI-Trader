@@ -6,7 +6,6 @@ from ai_trader.domain.signals import SignalBundle, SignalDirection
 from ai_trader.intelligence.models import NarrativeIntelligence
 from ai_trader.intelligence.trade_plan import TradePlan
 
-
 FEATURE_NAMES = (
     "bundle_combined_strength",
     "bundle_conviction",
@@ -21,6 +20,12 @@ FEATURE_NAMES = (
     "narrative_surprise_edge",
     "narrative_volatility_risk",
     "narrative_contrarian_risk",
+    "has_insider_buy",
+    "insider_value_usd",
+    "eps_surprise_pct",
+    "put_call_ratio",
+    "yield_spread_2_10",
+    "institutional_delta_shares",
 )
 
 
@@ -49,6 +54,8 @@ def extract_features(
         volatility_risk = narrative.behavior.volatility_risk
         contrarian_risk = narrative.behavior.contrarian_risk
 
+    signal_features = _signal_features(bundle)
+
     return np.asarray(
         [
             bundle.combined_strength,
@@ -64,6 +71,12 @@ def extract_features(
             surprise_edge,
             volatility_risk,
             contrarian_risk,
+            signal_features["has_insider_buy"],
+            signal_features["insider_value_usd"],
+            signal_features["eps_surprise_pct"],
+            signal_features["put_call_ratio"],
+            signal_features["yield_spread_2_10"],
+            signal_features["institutional_delta_shares"],
         ],
         dtype=float,
     )
@@ -75,3 +88,61 @@ def _direction_value(direction: SignalDirection) -> float:
     if direction is SignalDirection.SHORT:
         return -1.0
     return 0.0
+
+
+def _signal_features(bundle: SignalBundle) -> dict[str, float]:
+    features = {
+        "has_insider_buy": 0.0,
+        "insider_value_usd": 0.0,
+        "eps_surprise_pct": 0.0,
+        "put_call_ratio": 0.0,
+        "yield_spread_2_10": 0.0,
+        "institutional_delta_shares": 0.0,
+    }
+    for signal in bundle.signals:
+        metadata = signal.metadata or {}
+        if signal.name == "insider_buy":
+            features["has_insider_buy"] = 1.0
+        if signal.name in {"insider_buy", "insider_sell"}:
+            features["insider_value_usd"] = max(
+                features["insider_value_usd"],
+                _scaled_money(metadata.get("transaction_value_usd")),
+            )
+        if signal.name in {"earnings_beat", "earnings_miss"}:
+            features["eps_surprise_pct"] = _clip(
+                _float(metadata.get("eps_surprise_pct")) / 100.0,
+                -2.0,
+                2.0,
+            )
+        if signal.name == "options_put_call_contrarian":
+            features["put_call_ratio"] = (
+                _clip(_float(metadata.get("put_call_ratio")), 0.0, 10.0) / 10.0
+            )
+        if signal.name == "macro_regime":
+            features["yield_spread_2_10"] = _clip(
+                _float(metadata.get("yield_spread_2_10")),
+                -5.0,
+                5.0,
+            ) / 5.0
+        if signal.name == "institutional_accumulation":
+            features["institutional_delta_shares"] = max(
+                features["institutional_delta_shares"],
+                _clip(_float(metadata.get("institutional_delta_shares")), 0.0, 100_000_000.0)
+                / 100_000_000.0,
+            )
+    return features
+
+
+def _float(value) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _scaled_money(value) -> float:
+    return _clip(_float(value), 0.0, 50_000_000.0) / 50_000_000.0
+
+
+def _clip(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))

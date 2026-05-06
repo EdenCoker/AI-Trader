@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from pathlib import Path
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -46,10 +47,11 @@ class BuildLoop:
 
     def run_once(
         self,
-        tickers: list[str],
+        tickers: list[str] | None,
         backtest_start: date,
         backtest_end: date,
         max_proposals: int = 3,
+        events_file: Path | None = None,
     ) -> BuildLoopReport:
         errors: list[str] = []
         approved = 0
@@ -57,7 +59,9 @@ class BuildLoop:
         passed_backtest = 0
         prs_opened = 0
 
-        baseline = self._engine.run(tickers, backtest_start, backtest_end, WalkForwardConfig())
+        config = WalkForwardConfig(events_file=events_file)
+        baseline = self._engine.run(tickers, backtest_start, backtest_end, config)
+        ticker_universe = list(baseline.tickers)
         proposals = self._generator.generate(baseline, max_proposals=max_proposals)[:max_proposals]
 
         for proposal in proposals:
@@ -75,9 +79,10 @@ class BuildLoop:
                 gate_result = self._backtest_gate.validate(
                     proposal,
                     baseline,
-                    tickers,
+                    ticker_universe,
                     backtest_start,
                     backtest_end,
+                    events_file=events_file,
                 )
                 if not gate_result.passed:
                     continue
@@ -96,4 +101,3 @@ class BuildLoop:
             prs_opened=prs_opened,
             errors=tuple(errors),
         )
-
