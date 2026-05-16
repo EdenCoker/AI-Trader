@@ -50,13 +50,23 @@ ai-trader review-nightly --outcomes-file outcomes.jsonl
 
 ## Local GUI
 
-Run the browser console for common operator actions:
+Run the local frontend:
 
 ```powershell
 ai-trader gui
 ```
 
-It opens at `http://127.0.0.1:8787` and triggers the same whitelisted CLI workflows: status, news analysis, final reasoning, local training, RAG, IBKR positions, trade-plan execution, backtests, Monte Carlo, review, build loop, autopilot, and bridge startup.
+It opens at `http://127.0.0.1:8787`. The GUI is a complete local control
+surface with:
+
+- a dashboard for provider readiness, training/review counts, hardware-tuned
+  ingestion settings, and recent artifacts
+- a workbench for whitelisted CLI workflows with live command output
+- a label-review queue with accept, skip, and override controls
+- an artifact browser for JSON, JSONL, log, and text previews
+
+Trade and automation actions still use the same `.env`, IBKR, and live-trading
+safety gates as the CLI.
 
 ## Phase Map
 

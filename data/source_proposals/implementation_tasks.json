@@ -1,0 +1,94 @@
+{
+  "generated_at": "2026-05-07T08:31:58.349337+00:00",
+  "tasks": [
+    {
+      "auth_env": "SEC_EDGAR_USER_AGENT",
+      "bootstrap_steps": [
+        "configure secret env var: SEC_EDGAR_USER_AGENT",
+        "add loader hook for sec_form4_cluster using adapter=sec_form4",
+        "attach features/signals for category=insider",
+        "run ingest on a 20-ticker smoke set and validate schema",
+        "backtest source-only and source+baseline strategies over trailing 2y"
+      ],
+      "category": "insider",
+      "confidence": 0.5521,
+      "created_at": "2026-05-07T08:31:58.349337Z",
+      "free_tier": true,
+      "ingestion_adapter": "sec_form4",
+      "priority": 1,
+      "profitability_proxy": 0.88,
+      "source_id": "sec_form4_cluster"
+    },
+    {
+      "auth_env": "QUIVER_API_KEY",
+      "bootstrap_steps": [
+        "configure secret env var: QUIVER_API_KEY",
+        "add loader hook for quiver_live_house_senate using adapter=quiver_congress",
+        "attach features/signals for category=congress",
+        "run ingest on a 20-ticker smoke set and validate schema",
+        "backtest source-only and source+baseline strategies over trailing 2y"
+      ],
+      "category": "congress",
+      "confidence": 0.5278,
+      "created_at": "2026-05-07T08:31:58.349337Z",
+      "free_tier": true,
+      "ingestion_adapter": "quiver_congress",
+      "priority": 1,
+      "profitability_proxy": 0.82,
+      "source_id": "quiver_live_house_senate"
+    },
+    {
+      "auth_env": "SEC_EDGAR_USER_AGENT",
+      "bootstrap_steps": [
+        "configure secret env var: SEC_EDGAR_USER_AGENT",
+        "add loader hook for sec_13f_position_initiations using adapter=sec_13f",
+        "attach features/signals for category=institutional",
+        "run ingest on a 20-ticker smoke set and validate schema",
+        "backtest source-only and source+baseline strategies over trailing 2y"
+      ],
+      "category": "institutional",
+      "confidence": 0.4842,
+      "created_at": "2026-05-07T08:31:58.349337Z",
+      "free_tier": true,
+      "ingestion_adapter": "sec_13f",
+      "priority": 2,
+      "profitability_proxy": 0.79,
+      "source_id": "sec_13f_position_initiations"
+    },
+    {
+      "auth_env": "FMP_API_KEY",
+      "bootstrap_steps": [
+        "configure secret env var: FMP_API_KEY",
+        "add loader hook for fmp_earnings_surprises using adapter=fmp_earnings",
+        "attach features/signals for category=earnings",
+        "run ingest on a 20-ticker smoke set and validate schema",
+        "backtest source-only and source+baseline strategies over trailing 2y"
+      ],
+      "category": "earnings",
+      "confidence": 0.4659,
+      "created_at": "2026-05-07T08:31:58.348332Z",
+      "free_tier": true,
+      "ingestion_adapter": "fmp_earnings",
+      "priority": 2,
+      "profitability_proxy": 0.67,
+      "source_id": "fmp_earnings_surprises"
+    },
+    {
+      "auth_env": null,
+      "bootstrap_steps": [
+        "add loader hook for openinsider_cluster_buys using adapter=openinsider_csv",
+        "attach features/signals for category=insider",
+        "run ingest on a 20-ticker smoke set and validate schema",
+        "backtest source-only and source+baseline strategies over trailing 2y"
+      ],
+      "category": "insider",
+      "confidence": 0.4598,
+      "created_at": "2026-05-07T08:31:58.348332Z",
+      "free_tier": true,
+      "ingestion_adapter": "openinsider_csv",
+      "priority": 2,
+      "profitability_proxy": 0.74,
+      "source_id": "openinsider_cluster_buys"
+    }
+  ]
+}

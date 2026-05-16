@@ -1,65 +1,65 @@
-Live news headlines fetched 2026-05-06:
+Live news headlines fetched 2026-05-15:
 
-- People urged not to cancel flights over fuel shortage fears. Airlines have cut 13,000 flights globally in May as jet fuel prices soar due to the conflict in the Middle East.
-- Oil prices drop and stock markets rise after reports of deal to end Iran war. Reports have raised hopes of an agreement between the US and Iran after days of escalation.
-- Up to 150 former WHSmith high street stores to close. The stores were purchased by Modella Capital last year, and then rebranded under the name TGJones.
-- Former OpenAI board member says Elon Musk offered her sperm donations. Shivon Zilis is the mother of four of Musk's children. That relationship began as she advised OpenAI.
-- Next to hike prices by up to 8% outside Europe due to Iran war costs. No extra price rises are slated for the UK, which saw better than expected sales in the first quarter.
-- Robots move in as waste firms struggle to find staff. Humanoid robots are being added to the automation of waste sorting.
-- Campaigners call for ban on use of weedkiller glyphosate at harvest time. Campaigners are calling for a ban on the use of the weedkiller over health concerns.
-- Hedge fund founder hits back at Mamdani's 'creepy' wealth tax video. Ken Griffin said Mamdani's video, filmed outside his apartment, raised safety concerns.
-- Apple to pay up to $95 to some US iPhone buyers over AI lawsuit. Claims from last year said the tech firm’s advertising of Apple Intelligence fooled iPhone buyers.
-- 'I thought he was going to hit me,' OpenAI co-founder says of Musk. OpenAI president Greg Brockman spoke during the second week of a month-long trial between Elon Musk and OpenAI's Sam Altman.
-- UK long-term borrowing costs reach 28-year high. There have been extra jitters in UK government debt markets ahead of Thursday's local and national elections.
-- Lidl's new loyalty scheme less generous, shoppers say. Under the changed system customers collect points rather than reward coupons, with £1 spent equalling one point.
-- Nissan to close UK line and cut 900 European jobs. Nissan says it is considering working with a third party to fully utilise its Sunderland plant.
-- US to safety test new AI models from Google, Microsoft, xAI. New agreements between the companies and the Commerce department build on Biden-era pacts.
-- Gap co-founder Doris Fisher dies aged 94. She opened the first store with her husband Don in 1969, with the company calling her "a pioneering force in American retail".
-- 'Vodafone sold us a dream - the reality was something different'. Two women from Lincolnshire are among 62 former franchisees taking the phone company to court.
-- What's happening to UK petrol and diesel prices?. Motoring group RAC has said prices at the pump could keep rising if there is no resolution to the Iran war.
-- The threat to summer holidays looming from jet fuel shortages. What impact might shortages have on our summer holidays - and what could be done about it?
-- British pubs closing at a rate of almost two per day in 2026. The British Beer and Pub Association says 161 pubs have closed in the first three months of this year.
-- Amsterdam bans public adverts for meat and fossil fuels. Local politicians say the move is in line with the Dutch capital's environmental targets.
-- GameStop makes $55.5bn takeover offer for eBay. GameStop's boss Ryan Cohen says he sees potential to make eBay a much bigger rival to Amazon.
-- US denies Iranian report warship was struck by missiles. It comes as the US said on Monday it will begin to help "guide" vessels out of the Strait of Hormuz.
-- Samsung family pays off record $8bn inheritance tax bill. The bill is tied to the estate left by the firm's late chairman Lee Kun-hee, who died in  October 2020.
-- Airlines can cancel flights in advance over fuel shortages under new plans. Ministers hope move would help avoid last-minute flight cancellations for passengers this summer over Middle East fuel supplies.
-- Struggling High Streets fuel sense of neglect for voters ahead of local elections. Failing High Streets fuel a wider sense of political discontent which could prove crucial in the upcoming elections for English councils in May.
-- Spirit Airlines shutting down after rescue talks collapse. The airline had been in talks with the Trump administration about a $500m bailout.
-- Voters will judge Trump on the economy - how is it doing?. How much Donald Trump can do with the time he has left as president will depend massively on the cost of living.
-- Will AI lead to more accurate opinion polls?. It's cheaper and faster to collect people's opinions using AI, but will it make polls more accurate?
-- The kelp producer who wants to get Americans eating seaweed. Marine farmer Suzie Flores also hopes the crop can revitalise the US's small fishing towns.
-- Why Spotify has no button to filter out AI music. Music streamer Deezer allows users to filter out AI music, so why does Spotify not offer the same?
-- Snap issues cautious guidance as Perplexity deal ends, Middle East 'geopolitical situation' causes uncertainty. Snap reported first-quarter earnings and provided cautious sales guidance while revealing it no longer has a deal with the generative AI startup Perplexity.
-- Apollo CEO Rowan warns of market correction, slams 'egregious' practices at rival insurers. Apollo CEO Marc Rowan warned that markets face an elevated risk of unexpected shocks, saying he is positioning the firm defensively for an expected correction.
-- Nvidia to invest up to $3.2 billion in Corning as part of massive optical fiber deal with 3 new factories focused on AI. Corning is opening three new advanced manufacturing plants in the U.S. dedicated entirely to optical technologies for Nvidia.
-- DoorDash pops 12% on strong earnings, upbeat order growth guidance. DoorDash is in the middle of a massive spending initiative as it builds out a new tech platform following a string of acquisitions.
-- Warner Bros. Discovery books $2.9 billion net loss tied to Paramount deal, restructuring costs. Paramount agreed to pay a Netflix termination fee, but the cost lives on WBD's books until the close of the deal.
-- AMD's Su explains what's behind massive forecast change as stock roars 19% on earnings. CEO Lisa Su highlighted the growing demand for central processing units, doubling her long-term forecast after strong first-quarter earnings.
-- Will Elon Musk win his lawsuit against Sam Altman's OpenAI? Here's what prediction markets think. Trading activity on Elon Musk's suit against OpenAI is the second highest out of all prediction market contracts related to the billionaire.
-- FanDuel CEO Amy Howe is out after five years at the sportsbook. Howe has overseen FanDuel during a time of dramatic expansion in sports gambling and as prediction markets have exploded in popularity.
-- Berkshire-owned distribution giant to deploy driverless big rigs across U.S. Sun Belt. Berkshire Hathaway-owned McLane, one of America's biggest distribution companies, is deploying self-driving big rigs with Aurora for its restaurants business.
-- Iran war threatens jet fuel shortage that could disrupt summer travel in Asia and Europe. Oil executives have warned that the supply disruption in the Middle East will soon cause actual fuel shortages in some parts of the world.
-- Elon Musk's Terafab chip factory in Texas could cost up to $119 billion, filing shows. Elon Musk's giant Terafab facility in Texas could cost up to $119 billion, with hopes of manufacturing chips for Tesla, SpaceX and xAI
-- Anthropic, SpaceX announce compute deal that includes space development. Anthropic has signed a deal with SpaceX, which owns rival xAI, to use all of the compute capacity at the company’s Colossus 1 data center in Memphis, Tennessee.
-- Goodbye quarterly earnings? Here's when traders believe this big change will happen. Traders are evenly divided as to whether the change will happen by Jan. 1. That would be an unusually fast timeline for the commission.
-- Marco Rubio heads to the Vatican as 2028 presidential buzz ramps up. Secretary of State Marco Rubio is a frontrunner to succeed President Donald Trump in 2028, and Trump is sending him to meet with Pope Leo XIV.
-- Trump says Iran will be bombed at a 'much higher level' if it doesn't agree to peace deal. Stocks rose and oil prices plunged on news reports signaling the U.S. and Iran could soon strike an agreement to end the war.
-- Surging gas prices are hitting lower-income households harder, New York Fed study shows. Lower-income consumers are compensating for higher gas prices by buying less.
-- Even if an Iran deal calms energy markets, one oil stock can still stand out. Shell plc (SHEL), along with other large integrated oil companies, have benefited from higher oil prices and should warrant investor attention.
-- Airlines spent 56.4% more on jet fuel in month after Iran war started, U.S. government says. U.S. airlines spent 56.4% more on jet fuel in March than they did in February, U.S. government data released Wednesday shows.
-- Uber and Disney are seeing the same remarkable dynamic in this economy. Both stocks are surging. Uber and Disney pointed to a resilient spending backdrop, with consumers continuing to shell out for rides, food delivery, vacations and theme park trips.
-- Why Boeing and Honeywell are rallying — plus, the AI trade gets another boost. Every weekday, the Investing Club releases the Homestretch; an actionable afternoon update just in time for the last hour of trading.
-- Novo Nordisk CEO says the drugmaker is more active than ever in seeking out deals. Novo Nordisk CEO Mike Doustdar says the Ozempic and Wegovy maker is looking for deals more than ever before.
-- Epstein files: Commerce Sec. Howard Lutnick questioned by House Oversight panel. Howard Lutnick admitted to a Senate committee in February that he and his family visited Epstein's private island in the U.S. Virgin Islands in 2012.
-- Oil prices fall more than 7% as U.S. and Iran appear close to deal to end war. Oil prices fell sharply after Axios reported that the U.S. and Iran were closing in on an agreement to bring an end to the conflict.
-- Ken Griffin: Citadel expanding in Miami in response to NYC mayor Mamdani's 'poor taste' tax video. Mamdani's office said in response to Griffin, "our tax system is fundamentally broken. It rewards extreme wealth while working people are pushed to the brink."
-- Yankees legend Mariano Rivera says he supports an MLB salary cap. Former New York Yankee Mariano Rivera says he supports MLB salary cap as long as small-market teams are also spending.
-- Private payrolls rose by 109,000 in April, topping expectations, ADP says. The report provided more evidence of a stable labor market and less incentive for the Fed to lower interest rates.
-- Car payments squeeze Americans as auto debt hits $1.68 trillion, report finds. Auto debt has swelled to $1.68 trillion, a new analysis finds. Americans face costlier vehicles, higher interest rates and lengthier loan terms.
-- Disney pops 7% after streaming, parks drive revenue beat in first report under CEO Josh D'Amaro. Disney revenue topped analyst expectations when the media giant reported its fiscal second-quarter earnings on Wednesday.
-- Apple's R&D investments top 10% of sales as AI race creates 'sense of urgency'. Apple’s R&D spending has crossed 10% of revenue for the first time in at least 30 years, and increased twice as fast as sales in the latest quarter.
-- CVS blows past estimates, hikes outlook as insurance business outperforms. All of the healthcare giant's business segments, including its insurer Aetna, its retail pharmacy and health services unit, surpassed expectations.
+- UK borrowing costs rise and pound falls as leadership drama continues. Analysts say the moves have been fuelled by concerns a Burnham-led government would increase government borrowing.
+- British Gas pays £20m over prepayment meter force-fitting scandal. The regulator say the energy supplier breached licence conditions aimed at protecting customers in vulnerable situations.
+- Heathrow rival could lead expansion, watchdog says. The aviation watchdog is considering new rules for Heathrow ahead of its possible expansion.
+- Beckhams become billionaires as Oasis make rich list for first time. The list is based off the paper's estimates of the minimum wealth of Britain’s 350 richest people or families.
+- X pledges quicker action on hate and terror content in the UK. Ofcom said the commitments were of particular importance after recent crimes targeting Jewish communities in the UK.
+- Inside the secretive and lucrative world of orchid breeding. It can take a decade to bring a new orchid to market, so breeders keep their hi-tech processes secret.
+- Trump and Xi conclude 'very successful' talks but few deals confirmed. There were plenty of choreographed ceremonies but no trade breakthroughs after the two-day visit.
+- Claim, counter-claim and tech's seedy side exposed: Five things we learned in the Musk-Altman trial. As the jury deliberates, this is what we found out during the weeks-long trial with two tech titans at its heart.
+- US hotel owners expected a World Cup boom - so far it hasn't happened. An industry body survey found hotels in World Cup host cities see the tournament as a "non-event".
+- AI could put people off tech jobs and hurt the economy, warns Raspberry Pi boss. Eben Upton warns against claims that Artificial Intelligence will destroy vast numbers of computing roles over the coming years.
+- India's Adanis agree to pay $18m to settle civil fraud case in the US. The US securities regulator had accused the Adanis of paying bribes and misleading investors, which they denied.
+- Why Modi wants Indians to buy less gold and take fewer foreign holidays. Modi has urged Indians to save dollars as war and oil shocks strain the rupee and economy further this year.
+- Faisal Islam: Six things we now know about the UK economy in charts. The UK economy is showing resilience – it’s worth diving into the data in more detail to understand why.
+- UK economy sees surprise growth in March despite Iran war. The economy grew by 0.3% in the month, official figures show, confounding  analysts' forecasts of a small contraction.
+- Honda makes its first annual loss in 70 years. The firm will now pivot away from scrapping its target for all of its vehicles to be electric by 2040.
+- Warning higher Europe air fares 'inevitable' due to Iran war. Flying by air will get more expensive as oil prices remain high, says international industry body boss.
+- HMRC to use AI from British tech firm to spot fraud and tax return errors. Quantexa, a financial data platform, won the £175m contract to spot fraud and tax return errors.
+- Woman in bank row over depositing £900 HMRC cheque. Annabel Yates says she faces a 94 mile round trip to bank a cheque because of changes at Lloyds.
+- Trump's Fed chair pick Kevin Warsh confirmed by US Senate. Kevin Warsh was confirmed by the narrowest margin since the role required a Senate confirmation vote.
+- CIA chief visits Cuba as energy crisis worsens. The reported visit to Havana came after the US renewed an offer of aid to ease the effects of its oil blockade.
+- Australian giant Coles misled shoppers with fake discounts, court rules. The decision, which comes amid similar case against Woolworths, could mean significant penalties.
+- Tui sees summer sales fall 10% due to cautious UK customers. The travel operator says customers are delaying booking holidays over Iran war concerns.
+- WhatsApp launches totally private 'incognito' conversations with its AI chatbot. A cyber security expert says deleting chat history could lead to a lack of accountability if things go wrong.
+- Shrinking Milka chocolate bar tricked consumers, says German court. A court in Bremen has found the manufacturer of the classic Alpine Milk chocolate bar guilty of "shrinkflation".
+- Ex-rugby star on the joys of his own burger stall. Ex-England and Leicester Tigers hooker Tom Youngs says the new venture brings families to the farm.
+- Elon Musk and Jensen Huang among CEOs joining Trump on China trip. More than a dozen US executives have joined the president on his visit, where he will meet his Chinese counterpart Xi Jinping.
+- Elon Musk said control of OpenAI should go to his children, Sam Altman tells jury. Sam Altman said Elon Musk tried many times for total control of OpenAI, which he's now suing.
+- Smart glasses are 'an invasion of privacy' - Meta's are selling better than ever. The biggest tech firms are set to sell millions of smart glasses despite growing privacy concerns.
+- Big tech bets on new mascots in bid to seem more cuddly. The likes of Apple, Microsoft and Google are all putting cartoon characters centre stage.
+- Not so dusty: How tech is changing woodworking. Woodworking shops have been transformed by tech to make tools safer and more precise.
+- Trump went big on tech stocks in first quarter of 2026, new filings show. Trump bought shares of Amazon, Meta, Oracle, Broadcom, Motorola and Dell worth millions, new ethics disclosure filings show.
+- What you need to know about Nvidia competitor Cerebras after wild IPO. Nvidia competitor Cerebras made a stunning debut on Wall Street Thursday, signaling unstoppable demand for AI chips. Here's how its chips compete with Nvidia's.
+- Berkshire Hathaway returns to airlines with $2.6 billion stake in Delta Air Lines. The Omaha-based company built a position worth more than $2.6 billion, making Delta Berkshire's 14th-largest holding at the end of March.
+- Trump touted Palantir on Truth Social after buying the company's stock, records show. During the first three months of the year, Trump purchased between $630,000 and $247,008 worth of Palantir stock and sold at least $1.1 million.
+- Traders now see next Fed interest rate move as a hike following inflation surge. The fed funds futures market is pricing in an increase as soon as December.
+- Democrats blast Trump over 'slush fund' in possible IRS lawsuit settlement. ABC News reported President Donald Trump could settle a lawsuit against the IRS in exchange for a $1.7 billion fund to compensate his allies.
+- Stephen Miran exits the Fed. How he set the stage for Kevin Warsh.. The outgoing Fed governor shares big ideas with the incoming chair.
+- Maine might boot Sen. Susan Collins. It could hurt the state's wallet for years. Sen. Susan Collins is the lone New England Republican left in Congress and chairs the Senate Appropriations Committee.
+- Trump told Xi ‘I don't talk about’ whether U.S. would defend Taiwan from China. President Donald Trump spoke about Taiwan after a two-day visit to China, where he said he discussed Iran, and trade deals with Chinese President Xi Jingping.
+- How China and U.S. eased the Middle East oil shock and kept prices from spiking even higher. China and the U.S., the world's two largest economies, wield great influence over the oil market and are using it to help plug the supply gap.
+- Chinese EVs are coming to Canada, and some dealers can't wait to sell them. Canada is allowing 49,000 Chinese-made electric vehicles to be imported for retail sales annually at a tariff rate of 6.1%.
+- NFL wants certain trading contracts banned from prediction markets like 'first play of game,' injuries. The letter, which was reviewed by CNBC, calls for banning certain contracts and raising the age requirements for participation on sports-related contracts.
+- Can the S&P 500 hold on for a 7th weekly gain? Plus, Friday's best and worst stocks. Every weekday, the Investing Club releases the Homestretch; an actionable afternoon update just in time for the last hour of trading.
+- Inflation rate projected to hit 6% in the second quarter, top economic forecasters say. The recent surge in inflation is likely to get worse over the next several months, according to a survey Friday.
+- Starbucks to lay off 300 U.S. employees, shutter some regional support offices. Starbucks said the moves will help the coffee chain return to profitable growth.
+- Exxon's once-hefty dividend is now tiny. Here's how to fix that. 
+- Bristol Myers Squibb turns to China to develop new drugs in newest cross-continent collaboration. U.S. drugmaker Bristol Myers Squibb inked a partnership with a Chinese company that some say could mark the next wave of collaboration across continents.
+- Trump-Xi summit: The 3 big takeaways from historic meeting in Beijing. The two-day meeting wrapped up Friday, setting the tone for further U.S.-China talks this year.
+- Detroit automakers have cut more than 20,000 U.S. salaried jobs as AI threat looms. Reasons for the job declines vary by automaker, but are generally tied to evolving technological changes in the industry — including the rise of AI.
+- 'Biggest bottleneck in the AI buildup' fuels DRAM ETF to record. The Roundhill Memory ETF (DRAM) just reached $10 billion in assets at the fastest pace ever for an exchange-traded fund according to TMX VettaFi.
+- China will buy more U.S. oil because it is a natural trade partner, says Energy Secretary Wright. China relies heavily on crude oil imports from the Middle East but those supplies are mostly  cut off due to Iran's blockade of the Strait of Hormuz.
+- Cerebras stock falls 10% in first full day of trading after blockbuster debut. Cerebras Systems' shares were lower in early trading Friday, after its blockbuster stock market debut on Thursday.
+- Bill Ackman built Microsoft stake in first quarter during sell-off, betting on AI and cloud growth. Bill Ackman's Pershing Square Capital Management has built a position in Microsoft, the billionaire hedge fund manager said Friday in a post on X.
+- UAE fast tracks second West-East oil pipeline to bypass Strait of Hormuz. The second pipeline project comes as global energy supplies remain under pressure and flows through the Strait of Hormuz remain severely limited
+- Magnum Ice Cream stock soars after report of potential private equity takeover. It comes just six months after Magnum spun off from Unilever to create the world's largest standalone ice cream maker.
+- Why Britain’s potential next PM is putting investors on edge. Traders fear a new left-leaning U.K. government led by Andy Burnham would challenge the country's fiscal discipline.
+- Nvidia's trillion-dollar run puts pressure on the bulls. Nvidia's market cap is now just shy of $5.7 trillion, up from $4.7 trillion as of market close last Tuesday.
+- 'Survivor’s penalty’ can follow the death of a spouse — but its impact may be smaller than expected. The ‘survivor’s penalty’ can hit retirees after a spouse dies. But the impact could be smaller than expected, experts say.
+- CIA chief makes historic trip to Cuba as US blockade chokes island's energy supplies. The U.S. has been restricting oil shipments to Cuba since January, plunging the country into blackouts lasting days at a time.
+- Family investors turn to old-economy businesses like dealerships and fisheries to avoid AI disruption. While car dealerships and fisheries are less eye-catching than high-flying AI startups, they offer stability and cash flow that's attractive to family offices.
 - Stocks Sink in Broad AI Rout Sparked by China's DeepSeek. U.S. stocks were mostly lower, with the Nasdaq leading declines as makers of AI infrastructure suffered steep falls, many in the double digits. Nvidia was down 16%.
 - Comex Gold, Silver Settle Lower. Gold settled 1.4% lower, down two of the past three sessions, and silver fell 2.5%, down three of the past four sessions.
 - DeepSeek Won't Sink U.S. AI Titans. Panic fueling the selloff of Nvidia, Broadcom and other tech giants is overblown.
@@ -80,43 +80,43 @@ Live news headlines fetched 2026-05-06:
 - In China, a Cat-and-Mouse Game to Rein In Crypto. Recent court cases reveal how middlemen are facilitating a booming trade, eluding a crackdown.
 - One House, Three Owners: The Ballooning Cost of the American Dream. The story of home affordability in the U.S. told from a single front porch.
 - Trump Adds Fuel to Claims That Big Banks Discriminate Against Conservatives. The president has told Bank of America and JPMorgan Chase to stop cutting conservatives off from doing business.
-- Almonty Industries names Jorge Beristain as new CFO. 
-- Gray Media completes $80M acquisition of Block stations. 
-- Form 10Q LiveWire Group Inc For: 6 May. 
-- Form 10Q Aurora Innovation Inc For: 6 May. 
-- Community West Bancshares director Dorothea Silva buys $3,892 stock. 
-- Form 10Q INMED PHARMACEUTICALS INC. For: 6 May. 
-- Hershey Trust Co sells $5.5m of Hershey Co stock in early May. 
-- Douglas Carr, SVP at Century Therapeutics, sells $618 in stock. 
-- Ionis Pharmaceuticals director Joseph Loscalzo sells $5.8m stock. 
-- Form 10Q Savers Value Village Inc For: 6 May. 
-- Vermilion Energy Inc. (VET:CA) Shareholder/Analyst Call - Slideshow. 
-- Lifecore Biomedical, Inc. 2026 Q1 - Results - Earnings Call Presentation. 
-- PureCycle Technologies, Inc. 2026 Q1 - Results - Earnings Call Presentation. 
-- eHealth, Inc. 2026 Q1 - Results - Earnings Call Presentation. 
-- Elanco Animal Health Incorporated 2026 Q1 - Results - Earnings Call Presentation. 
-- PTC Inc. 2026 Q2 - Results - Earnings Call Presentation. 
-- Postal Realty Trust, Inc. (PSTL) Q1 2026 Earnings Call Transcript. 
-- Stella-Jones Inc. 2026 Q1 - Results - Earnings Call Presentation. 
-- Why The Palantir Premium Is Likely To Stay. 
-- Buy The Dip: Two REITs Getting Way Too Cheap. 
-- Millrose Properties: Solid Income Prospects With Limited Growth. 
-- United Fire Group, Inc. 2026 Q1 - Results - Earnings Call Presentation. 
-- United Fire Group, Inc. (UFCS) Q1 2026 Earnings Call Transcript. 
-- Rayonier Advanced Materials Inc. (RYAM) Q1 2026 Earnings Call Transcript. 
-- Holley Inc. (HLLY) Q1 2026 Earnings Call Transcript. 
-- Maha Capital AB (publ) (MHEYF) Discusses Merger Completion, New Capital Structure, and Strategic Focus on Fintech and Venezuelan Asset Transcript. 
-- Mobileye: China Strength Buoys Q1, But The 'AI Proof' Burden Remains. 
-- GRX: Massive Discount From This Healthcare CEF. 
-- Sandisk: The Options Market Is Pricing A Big Selloff (Technical Analysis). 
-- AMD Rallies On 38% Revenue Surge: 2 Top Undervalued AI Chip Stocks. 
-- LivaNova PLC (LIVN) Q1 2026 Earnings Call Transcript. 
-- Louisiana-Pacific Corporation (LPX) Q1 2026 Earnings Call Transcript. 
-- Enerflex Ltd. (EFX:CA) Shareholder/Analyst Call Prepared Remarks Transcript. 
-- Equinor ASA (EQNR) Q1 2026 Earnings Call Transcript. 
-- NRG Energy, Inc. (NRG) Q1 2026 Earnings Call Transcript. 
-- TIM S.A. (TIMB) Q1 2026 Earnings Call Transcript. 
-- Cencora, Inc. (COR) Q2 2026 Earnings Call Transcript. 
-- BorgWarner Inc. (BWA) Q1 2026 Earnings Call Transcript. 
-- Saratoga Investment Corp (SAR) Q4 2026 Earnings Call Transcript. 
-- Comfort Systems USA Is On Fire, But It Needs To Chill Down. 
+- Monster Beverage CFO Thomas Kelly sells $614,670 in company stock. 
+- Monster beverage chief strategy officer sells $8.48m in stock. 
+- Fortinet CFO Christiane Ohlgart sells $90,720 of stock. 
+- Monster Beverage director Mark J. Hall sells $4.6m in stock. 
+- Axe Compute updates at-the-market offering to allow up to $100 million in stock sales. 
+- Form 13G Oric Pharmaceuticals For: 15 May. 
+- Form 13G Veradermics For: 15 May. 
+- Form 13G Pharvaris N.V. For: 15 May. 
+- Factbox-Trump undertakes sweeping makeover of White House and Washington. 
+- Form 13G Ginkgo Bioworks Holdings For: 15 May. 
+- Golden Opportunity PDO: This Rarely Happens. 
+- Affirm Holdings, Inc. (AFRM) Discusses Vision, Growth Drivers, and Medium-Term Financial Framework Update Transcript. 
+- Diversified Royalty Corp. (DIV:CA) M&A Call Transcript. 
+- Palantir: Riding The AI Wave, But Limited Margin Of Safety. 
+- Syensqo SA/NV (SYNSY) Q1 2026 Earnings Call Transcript. 
+- Dillards - A 3-Year Review In 2026 With A 'HOLD'. 
+- FS KKR Capital: My Biggest BDC Failure By Far (Rating Downgrade). 
+- B2Gold: The Re-Rating Setup Is Building As A New Era Begins. 
+- Western Alliance Bancorporation (WAL) Analyst/Investor Day Transcript. 
+- Great Buy-The-Dip Opportunity: Deeply Discounted 7.8-11% Yields With Buybacks. 
+- Micron: How Long Will The AI Trade Last?. 
+- Short Selling And Put Buying Point To Continuing Rally. 
+- Brookfield Renewable Set To Have Single Corporate Structure As Inflation Spikes. 
+- Electrovaya: Finding New Markets For Battery Technology. 
+- When Values Meet Capital: How Trust Structures Are Quietly Reshaping Impact Investing. 
+- Lassonde Industries Inc. (LAS.A:CA) Shareholder/Analyst Call Prepared Remarks Transcript. 
+- Arrive AI Inc. (ARAI) Q1 2026 Earnings Call Transcript. 
+- MiNK Therapeutics, Inc. (INKT) Q1 2026 Earnings Call Transcript. 
+- Zhejiang Leapmotor Technology Co., Ltd. (ZJLMF) Q1 2026 Earnings Call Transcript. 
+- Update On The Leveraged Coinbase ETF CONL. 
+- Oil Prices Drive Inflation Above Wages: A Blip, Not A Trend. 
+- Kyivstar Q1 Earnings Review: Staying Bullish Amid Improved Expectations. 
+- Aviva plc (AVVIY) Q1 2026 Sales/Trading Call Transcript. 
+- OTP Bank Nyrt. (OTPBF) Q1 2026 Earnings Call Transcript. 
+- Brava Energia S.A. 2026 Q1 - Results - Earnings Call Presentation. 
+- QuoteMedia, Inc. (QMCI) Q1 2026 Earnings Call Transcript. 
+- Alpha Cognition Inc. (ACOG) Q1 2026 Earnings Call Transcript. 
+- Roche To Acquire PathAI: Smart Dealmaking By A Smart Pharma. 
+- Prairie Operating Co. 2026 Q1 - Results - Earnings Call Presentation. 
+- Bloom Energy: Oracle, Brookfield, And The Path To Upside. 

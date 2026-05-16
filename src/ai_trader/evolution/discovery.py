@@ -62,17 +62,22 @@ class DiscoveryAgent:
                 proposal = self._proposal_for(source, watchlist_size=len(watchlist))
                 if proposal is not None:
                     proposals.append(proposal)
-                    if source.status == "candidate" and proposal.score >= self.min_score:
+                    should_escalate = (
+                        source.status == "candidate"
+                        and proposal.proposed_status == "pending_approval"
+                    )
+                    if should_escalate:
                         updated = updated.replace(
                             source.model_copy(update={"status": "pending_approval"})
                         )
 
             for source in self._new_probe_candidates(registry):
+                updated = updated.replace(source)
                 proposal = self._proposal_for(source, watchlist_size=len(watchlist))
                 if proposal is None:
                     continue
                 proposals.append(proposal)
-                if proposal.score >= self.min_score:
+                if proposal.proposed_status == "pending_approval":
                     updated = updated.replace(
                         source.model_copy(update={"status": "pending_approval"})
                     )
@@ -109,7 +114,9 @@ class DiscoveryAgent:
         if source.status == "active" and score >= 0:
             reason = "scheduled validation refresh"
             proposed_status = "active"
-        elif score >= self.min_score:
+        elif score >= self.min_score or (
+            source.status == "candidate" and source.profitability_proxy >= 0.7
+        ):
             reason = "source score met pending approval threshold"
             proposed_status = "pending_approval"
         else:
@@ -151,24 +158,112 @@ class DiscoveryAgent:
 
 DEFAULT_DISCOVERY_PROBES = (
     DataSourceRecord(
+        id="sec_form4_cluster",
+        type="api",
+        url="https://www.sec.gov/edgar/search/",
+        auth="SEC_EDGAR_USER_AGENT",
+        status="candidate",
+        lift_score=0.16,
+        coverage_score=0.52,
+        freshness_score=0.92,
+        complexity_score=0.42,
+        free_tier=True,
+        category="insider",
+        profitability_proxy=0.88,
+        ingestion_adapter="sec_form4",
+        notes="Cluster insider buying/selling from SEC Form 4 filings.",
+    ),
+    DataSourceRecord(
+        id="quiver_live_house_senate",
+        type="api",
+        url="https://api.quiverquant.com/beta/live/housetrading",
+        auth="QUIVER_API_KEY",
+        status="candidate",
+        lift_score=0.15,
+        coverage_score=0.48,
+        freshness_score=0.95,
+        complexity_score=0.30,
+        free_tier=True,
+        category="congress",
+        profitability_proxy=0.82,
+        ingestion_adapter="quiver_congress",
+        notes="Near-real-time House/Senate trade disclosures from Quiver.",
+    ),
+    DataSourceRecord(
+        id="sec_13f_position_initiations",
+        type="api",
+        url="https://www.sec.gov/edgar/search/",
+        auth="SEC_EDGAR_USER_AGENT",
+        status="candidate",
+        lift_score=0.14,
+        coverage_score=0.40,
+        freshness_score=0.88,
+        complexity_score=0.50,
+        free_tier=True,
+        category="institutional",
+        profitability_proxy=0.79,
+        ingestion_adapter="sec_13f",
+        notes="Detect new institutional long initiations from quarterly 13F filings.",
+    ),
+    DataSourceRecord(
+        id="openinsider_cluster_buys",
+        type="csv",
+        url="http://openinsider.com/screener",
+        status="candidate",
+        lift_score=0.11,
+        coverage_score=0.35,
+        freshness_score=0.80,
+        complexity_score=0.34,
+        free_tier=True,
+        category="insider",
+        profitability_proxy=0.74,
+        ingestion_adapter="openinsider_csv",
+        notes="Free insider cluster buy/sell tape, useful for conviction overlays.",
+    ),
+    DataSourceRecord(
+        id="fmp_earnings_surprises",
+        type="api",
+        url="https://financialmodelingprep.com/api/v3/earning-surprises",
+        auth="FMP_API_KEY",
+        status="candidate",
+        lift_score=0.12,
+        coverage_score=0.45,
+        freshness_score=0.86,
+        complexity_score=0.25,
+        free_tier=True,
+        category="earnings",
+        profitability_proxy=0.67,
+        ingestion_adapter="fmp_earnings",
+        notes="Post-earnings drift source from FMP free tier.",
+    ),
+    DataSourceRecord(
+        id="koyfin_insider_news_rss",
+        type="rss",
+        url="https://www.marketwatch.com/rss/topstories",
+        status="candidate",
+        lift_score=0.07,
+        coverage_score=0.55,
+        freshness_score=0.84,
+        complexity_score=0.22,
+        free_tier=True,
+        category="news",
+        profitability_proxy=0.52,
+        ingestion_adapter="rss_events",
+        notes="Free headline stream for catalyst confirmation around smart-money activity.",
+    ),
+    DataSourceRecord(
         id="gdelt_finance_feed",
         type="rss",
         url="https://api.gdeltproject.org/api/v2/doc/doc",
         status="candidate",
         lift_score=0.08,
         coverage_score=0.35,
+        freshness_score=0.82,
         complexity_score=0.35,
-        notes="GDELT finance/news probe",
-    ),
-    DataSourceRecord(
-        id="fmp_earnings_surprises",
-        type="api",
-        url="https://financialmodelingprep.com/api/v3/earning_surprises",
-        auth="FMP_API_KEY",
-        status="candidate",
-        lift_score=0.12,
-        coverage_score=0.45,
-        complexity_score=0.25,
-        notes="FMP free-tier earnings surprise probe",
+        free_tier=True,
+        category="news",
+        profitability_proxy=0.44,
+        ingestion_adapter="gdelt",
+        notes="Global media sentiment around positions and macro regimes.",
     ),
 )

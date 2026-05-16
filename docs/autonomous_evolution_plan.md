@@ -26,22 +26,27 @@
 ┌──────────────────────────────────────────────────────────────────────┐
 │                     WEEKLY EVOLUTION CYCLE                           │
 │                                                                      │
-│  ┌─────────────────┐    ┌──────────────────┐     ┌────────────────┐  │
-│  │ 1. Discovery    │───▶│ 2. Ingestion     │───▶│ 3. Training    │  │
-│  │    Agent        │    │    Orchestrator  │     │    Agent       │  │
-│  └─────────────────┘    └──────────────────┘     └────────────────┘  │
-│           │                                             │            │
+│  ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐  │
+│  │ 1. Discovery    │───▶│ 2. Source        │───▶│ 3. Ingestion    │  │
+│  │    Agent        │    │    Implement.    │    │    Orchestrator │  │
+│  └─────────────────┘    │    Agent         │    └─────────────────┘  │
+│           │             └──────────────────┘           │            │
 │           ▼                                             ▼            │
 │  ┌─────────────────┐                         ┌────────────────────┐  │
-│  │ 4. Ticker        │                        │ 5. Promotion       │  │
-│  │    Expansion     │                        │    Gate (3-BT)     │  │
+│  │ 4. Ticker        │                        │ 5. Training        │  │
+│  │    Expansion     │                        │    Agent           │  │
 │  │    Agent         │                        └────────────────────┘  │
 │  └─────────────────┘                                  │              │
+│                                                        ▼             │
+│                                            ┌────────────────────┐    │
+│                                            │ 6. Promotion       │    │
+│                                            │    Gate (3-BT)     │    │
+│                                            └────────────────────┘    │
 │                                               Pass    │    Fail      │
 │                                               ┌───────┘    └──────┐  │
 │                                               ▼                   ▼  │ 
 │                                      ┌──────────────┐   ┌──────────┐ │
-│                                      │ 6. Model     │   │ Archive  │ │
+│                                      │ 7. Model     │   │ Archive  │ │
 │                                      │    Promoter  │   │ & Alert  │ │
 │                                      └──────────────┘   └──────────┘ │
 └──────────────────────────────────────────────────────────────────────┘
@@ -61,13 +66,23 @@ The weekly scheduler (`scripts/weekly_evolution.py`) orchestrates them in order.
    - Scores the source on coverage (% of current tickers with data), freshness,
      and historical backtest lift (estimated via a quick 10-example regression probe)
    - Writes a `DataSourceProposal` to `data/source_proposals/`
-2. **TickerExpansionAgent** queries multiple discovery feeds (see §5) to find
+   - Auto-registers new probes with `status: candidate`; promotes sources with
+     `profitability_proxy >= 0.7` directly to `pending_approval` without requiring
+     the numeric score threshold to be met
+2. **SourceImplementationAgent** reads the registry and builds a ranked task queue
+   at `data/source_proposals/implementation_tasks.json`. Each task contains:
+   - Priority (1–5), adapter ID, auth env var, confidence score, and bootstrap steps
+   - Confidence formula: `0.65 * base_score + 0.35 * profitability_proxy` (uses a
+     0.75 freshness prior for candidates without a validation timestamp)
+   - Tasks with priority 1–2 are auto-wired into the ingest pipeline on the same cycle
+     (pending implementation); `--skip-implementation` CLI flag disables this step
+3. **TickerExpansionAgent** queries multiple discovery feeds (see §5) to find
    tickers that are not in the current watchlist but appear frequently in
    smart-money signals. It scores each candidate and appends approved ones to
    `data/watchlist.txt` up to a configured weekly cap (default: +20 tickers).
 
 ### Day 2–3 (Tue–Wed): Ingestion
-3. **IngestionOrchestrator** runs the full pipeline for the expanded ticker
+4. **IngestionOrchestrator** runs the full pipeline for the expanded ticker
    universe across all active data sources:
    ```
    scripts/ingest_training_data.py --out logs/candidate_examples.jsonl \
@@ -81,7 +96,7 @@ The weekly scheduler (`scripts/weekly_evolution.py`) orchestrates them in order.
      gaps, and outlier counts.
 
 ### Day 3–4 (Wed–Thu): Training
-4. **TrainingAgent** trains a candidate `LocalCalibratorModel` on the rolling
+5. **TrainingAgent** trains a candidate `LocalCalibratorModel` on the rolling
    window:
    ```
    python -m ai_trader.cli train local \
@@ -93,7 +108,7 @@ The weekly scheduler (`scripts/weekly_evolution.py`) orchestrates them in order.
    - The candidate is NOT yet used in live trading.
 
 ### Day 5–6 (Thu–Fri): Promotion Gate
-5. **PromotionGate** runs the 3-backtest challenge (see §6 for full detail).
+6. **PromotionGate** runs the 3-backtest challenge (see §6 for full detail).
    - On **pass**: promotes candidate → production, archives previous model.
    - On **fail**: archives candidate with reason, sends alert, keeps current model.
 
@@ -116,16 +131,56 @@ The weekly scheduler (`scripts/weekly_evolution.py`) orchestrates them in order.
       "url": "https://api.quiverquant.com/beta/bulk/congresstrading",
       "auth": "QUIVER_API_KEY",
       "schema_version": 1,
-      "last_validated": "2026-05-01",
+      "last_validated": "2026-05-06",
       "status": "active",
-      "lift_score": 0.14
+      "lift_score": 0.14,
+      "free_tier": true,
+      "category": "general",
+      "profitability_proxy": 0.0,
+      "ingestion_adapter": null
     },
     ...
   ]
 }
 ```
 
-### 4b. Candidate Source Scoring
+The `DataSourceRecord` schema (pydantic model in `evolution/source_registry.py`) includes
+four additional fields added in May 2026:
+
+| Field | Type | Purpose |
+|---|---|---|
+| `free_tier` | `bool` | Whether the source requires a paid API subscription |
+| `category` | `str` | Signal category: `insider`, `congress`, `institutional`, `earnings`, `news`, `general` |
+| `profitability_proxy` | `float 0–1` | Expert-estimated signal alpha; used in implementation confidence formula |
+| `ingestion_adapter` | `str \| None` | Key matching the loader in `ingest_training_data.py` |
+
+**Current registry state (May 2026):** 14 total sources — 7 active (original), 3 active
+(newly implemented: `sec_form4_cluster`, `quiver_live_house_senate`,
+`sec_13f_position_initiations`), 1 pending approval (`openinsider_cluster_buys`),
+3 candidate (`fmp_earnings_surprises`, `koyfin_insider_news_rss`, `gdelt_finance_feed`).
+
+### 4b. Implementation Task Queue
+
+The `SourceImplementationAgent` (`evolution/source_implementation.py`) converts
+registry candidates into an actionable task list:
+
+```
+data/source_proposals/implementation_tasks.json
+```
+
+Each `ImplementationTask` contains:
+- `source_id`, `priority` (1–5), `category`, `ingestion_adapter`
+- `auth_env` (env var required), `free_tier`, `profitability_proxy`
+- `confidence` — implementation confidence score
+- `bootstrap_steps` — ordered checklist for implementing the adapter
+
+Confidence formula:
+$$\text{confidence} = 0.65 \times \max(\text{base\_score}, 0) + 0.35 \times \text{profitability\_proxy}$$
+
+Priority mapping: `profitability_proxy ≥ 0.80 → 1`, `≥ 0.65 → 2`, `≥ 0.50 → 3`,
+`≥ 0.35 → 4`, otherwise `5`.
+
+### 4c. Candidate Source Scoring
 
 For each candidate source the `DiscoveryAgent` computes a **Source Score**:
 
@@ -137,26 +192,38 @@ Where:
 - **lift** = correlation of the source's signal with 30-day forward returns on a held-out 500-example probe
 - **complexity** = normalized schema complexity (number of parse steps required)
 
-Sources scoring above 0.5 are added as `pending_approval` status. A daily Slack/email
-digest lists pending sources for human one-time approval; once approved they become
-`active` without further human action.
+Sources scoring above 0.5 are added as `pending_approval` status. Sources with
+`profitability_proxy >= 0.7` are also promoted to `pending_approval` regardless of
+the numeric score. A daily Slack/email digest lists pending sources for human
+one-time approval; once approved they become `active` without further human action.
 
-### 4c. Auto-Discovery Probes
+### 4d. Auto-Discovery Probes
 
 The agent runs probes against the following feeds each week looking for new signal:
 
+Seven probes are pre-registered in `DEFAULT_DISCOVERY_PROBES` (all `free_tier=True`):
+
+| Source ID | Category | Adapter | `profitability_proxy` | Status |
+|---|---|---|---|---|
+| `sec_form4_cluster` | insider | `sec_form4` | 0.88 | **active** |
+| `quiver_live_house_senate` | congress | `quiver_congress` | 0.82 | **active** |
+| `sec_13f_position_initiations` | institutional | `sec_13f` | 0.79 | **active** |
+| `openinsider_cluster_buys` | insider | `openinsider_csv` | 0.74 | pending_approval |
+| `fmp_earnings_surprises` | earnings | `fmp_earnings` | 0.67 | candidate |
+| `koyfin_insider_news_rss` | news | `rss_events` | 0.52 | candidate |
+| `gdelt_finance_feed` | news | `gdelt` | 0.44 | candidate |
+
+Additional probe targets for future cycles:
+
 | Category | Probe Target |
 |---|---|
-| Congressional trades | Quiver `/bulk/congresstrading`, House Disclosure PDFs via SEC EDGAR |
-| Institutional 13F | SEC EDGAR full-text search for new 13F filers with >$100M AUM |
 | Options flow | Unusual Whales public RSS, Tradytics public endpoints |
 | Macro | FRED series catalog — scan for new series tagged "finance" or "business" |
-| News/NLP | RSS autodiscovery on major financial publishers; GDELT project feed |
-| Short interest | FINRA consolidatedShortInterest (already in ingest), add Ortex public summaries |
-| Insider filings | SEC Form 4 EDGAR full-text search (already partly done); expand to Form 144 |
+| News/NLP | RSS autodiscovery on major financial publishers |
+| Short interest | Ortex public summaries (supplement existing FINRA feed) |
+| Insider filings | Form 144 (pre-planned sales; SEC EDGAR) |
 | Patent filings | USPTO bulk data RSS for assignee matches against watchlist tickers |
-| Earnings surprises | Financial Modeling Prep `/earning_surprises` free tier |
-| Supply chain | Bloomberg Industry Classification hierarchy — find upstream/downstream peers |
+| Supply chain | Bloomberg Industry Classification hierarchy — upstream/downstream peers |
 
 ---
 
@@ -298,12 +365,15 @@ One-command rollback: `python -m ai_trader.cli model rollback --to v0003`
 
 ```
 scripts/
-    weekly_evolution.py          ← top-level weekly orchestrator (new)
+    weekly_evolution.py          ← top-level weekly orchestrator
+                                    (--skip-implementation flag available)
 
 src/ai_trader/
-    evolution/                   (new package)
+    evolution/                   (package)
         __init__.py
-        discovery.py             ← DiscoveryAgent (source scoring, probes)
+        discovery.py             ← DiscoveryAgent (source scoring, probes, auto-registration)
+        source_implementation.py ← SourceImplementationAgent (task queue builder)
+        source_registry.py       ← DataSourceRecord + SourceRegistry pydantic models
         ticker_expansion.py      ← TickerExpansionAgent
         ingestion_orchestrator.py← parallel ingestion with retry
         training_agent.py        ← wraps LocalCalibratorTrainer, writes versioned model
@@ -311,17 +381,18 @@ src/ai_trader/
         promoter.py              ← atomic file-swap + archive + alert
         backtest_pool.py         ← pool management (add/evict entries)
         watchlist_manager.py     ← add/demote tickers, enforce cap
-        source_registry.py       ← load/save/validate DataSource records
         reports.py               ← AgentReport base model, JSON serialization
 
 data/
-    source_registry.json         (new — managed by DiscoveryAgent)
-    backtest_pool.json           (new — managed by backtest_pool.py)
-    watchlist.txt                (existing — now written by watchlist_manager.py)
+    source_registry.json         (managed by DiscoveryAgent — 14 sources as of May 2026)
+    backtest_pool.json           (managed by backtest_pool.py)
+    watchlist.txt                (written by watchlist_manager.py)
+    source_proposals/
+        implementation_tasks.json← ranked task queue from SourceImplementationAgent
     models/
-        production.json          (existing — now promoted atomically)
-        version_registry.json    (new)
-        archive/                 (new directory)
+        production.json          (promoted atomically)
+        version_registry.json
+        archive/
 ```
 
 ---

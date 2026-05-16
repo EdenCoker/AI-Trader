@@ -30,6 +30,7 @@ from ai_trader.intelligence.trade_plan import TradePlan
 from ai_trader.intelligence.models import NarrativeIntelligence
 from ai_trader.intelligence.narrative import NarrativeAnalyzer
 from ai_trader.intelligence.reasoner import FinalReasoner
+from ai_trader.providers.fear_greed import LiveFearGreedProvider
 from ai_trader.rag.trader_rag import format_retrieved, get_trader_rag
 from ai_trader.self_improvement.scheduler import NightlyReviewScheduler
 from ai_trader.training import (
@@ -95,6 +96,37 @@ def status() -> None:
     settings = get_settings()
     rprint(settings.redacted())
     rprint(settings.provider_status())
+
+
+@app.command("fear-greed")
+def fear_greed(
+    output: Path | None = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help="Write the current snapshot JSON to this file.",
+    ),
+    no_append: bool = typer.Option(
+        False,
+        "--no-append",
+        help="Do not append the snapshot to AI_TRADER_FEAR_GREED_SNAPSHOT_PATH.",
+    ),
+) -> None:
+    """Fetch the live composite fear/greed snapshot."""
+
+    _configure_logging()
+    settings = get_settings()
+    provider = LiveFearGreedProvider(settings=settings)
+    snapshot = provider.fetch_snapshot()
+    if not no_append:
+        provider.append_snapshot(snapshot)
+
+    json_str = snapshot.model_dump_json(indent=2)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json_str, encoding="utf-8")
+    else:
+        print(json_str)
 
 
 @app.command("gui")

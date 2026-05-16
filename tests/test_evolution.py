@@ -8,6 +8,7 @@ from ai_trader.evolution.backtest_pool import BacktestPool, BacktestPoolEntry
 from ai_trader.evolution.discovery import DiscoveryAgent
 from ai_trader.evolution.promoter import ModelPromoter
 from ai_trader.evolution.promotion_gate import PromotionGate
+from ai_trader.evolution.source_implementation import SourceImplementationAgent
 from ai_trader.evolution.source_registry import DataSourceRecord, SourceRegistry
 from ai_trader.evolution.watchlist_manager import TickerCandidate, WatchlistManager
 
@@ -117,6 +118,61 @@ def test_discovery_agent_marks_high_scoring_candidate_pending(tmp_path: Path):
     assert updated.by_id()["candidate_feed"].status == "pending_approval"
     assert report.summary["proposals"] >= 1
     assert list(proposals_dir.glob("*.json"))
+
+
+def test_discovery_agent_registers_default_probe_candidates(tmp_path: Path):
+    registry_path = tmp_path / "source_registry.json"
+    SourceRegistry(sources=()).save(registry_path)
+
+    report = DiscoveryAgent(
+        registry_path=registry_path,
+        proposals_dir=tmp_path / "proposals",
+        watchlist_path=tmp_path / "watchlist.txt",
+        min_score=0.9,
+        run_id="test",
+    ).run()
+
+    updated = SourceRegistry.load(registry_path)
+    assert report.ok
+    assert "sec_form4_cluster" in updated.by_id()
+    assert updated.by_id()["sec_form4_cluster"].category == "insider"
+
+
+def test_source_implementation_agent_outputs_tasks(tmp_path: Path):
+    registry_path = tmp_path / "source_registry.json"
+    out_path = tmp_path / "implementation_tasks.json"
+    SourceRegistry(
+        sources=(
+            DataSourceRecord(
+                id="sec_form4_cluster",
+                type="api",
+                url="https://www.sec.gov/edgar/search/",
+                auth="SEC_EDGAR_USER_AGENT",
+                status="pending_approval",
+                lift_score=0.16,
+                coverage_score=0.52,
+                freshness_score=0.9,
+                complexity_score=0.35,
+                category="insider",
+                profitability_proxy=0.88,
+                ingestion_adapter="sec_form4",
+            ),
+        )
+    ).save(registry_path)
+
+    report = SourceImplementationAgent(
+        registry_path=registry_path,
+        out_path=out_path,
+        min_confidence=0.45,
+        run_id="test",
+    ).run()
+
+    payload = json.loads(out_path.read_text(encoding="utf-8"))
+    assert report.ok
+    assert payload["tasks"]
+    first = payload["tasks"][0]
+    assert first["source_id"] == "sec_form4_cluster"
+    assert first["ingestion_adapter"] == "sec_form4"
 
 
 def test_promotion_gate_promotes_better_candidate_and_promoter_rolls_back(tmp_path: Path):

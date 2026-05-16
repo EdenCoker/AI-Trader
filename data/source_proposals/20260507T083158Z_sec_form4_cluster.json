@@ -1,0 +1,11 @@
+{
+  "complexity": 0.42,
+  "coverage": 0.52,
+  "created_at": "2026-05-07T08:31:58.337809Z",
+  "freshness": 0.0,
+  "lift": 0.16,
+  "proposed_status": "pending_approval",
+  "reason": "source score met pending approval threshold; watchlist_size=20",
+  "score": 0.188,
+  "source_id": "sec_form4_cluster"
+}

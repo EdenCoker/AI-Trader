@@ -1,0 +1,11 @@
+{
+  "complexity": 0.3,
+  "coverage": 0.48,
+  "created_at": "2026-05-07T08:31:27.295156Z",
+  "freshness": 0.0,
+  "lift": 0.15,
+  "proposed_status": "pending_approval",
+  "reason": "source score met pending approval threshold; watchlist_size=20",
+  "score": 0.183,
+  "source_id": "quiver_live_house_senate"
+}

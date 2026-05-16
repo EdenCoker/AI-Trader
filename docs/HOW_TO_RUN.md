@@ -87,7 +87,12 @@ SEC_EDGAR_USER_AGENT="AI-Trader research your-email@example.com"
 Look-ahead rules:
 
 - Quiver congressional trades must use disclosure or `FiledAfterDate`, not transaction date.
+- `house_trade` and `senate_trade` signals use separate Quiver endpoints
+  (`/live/housetrading`, `/live/senatetrading`) — the chamber field is set automatically.
 - SEC 13F signals must use EDGAR `acceptanceDatetime` or filing date, not report period.
+  `institutional_initiation` fires on the filing date when `previous_shares is None`.
+- SEC Form 4 cluster signal (`sec_form4_cluster`) fires when ≥3 distinct `rptOwnerCik`
+  values buy in the same disclosure window.
 - Polygon market data is usable at its market timestamp.
 
 ### Social Sentiment
@@ -97,6 +102,25 @@ X_BEARER_TOKEN=...
 REDDIT_CLIENT_ID=...
 REDDIT_CLIENT_SECRET=...
 REDDIT_USER_AGENT="ai-trader-sentiment/0.1 by your_reddit_username"
+```
+
+### Live Fear/Greed
+
+The live fear/greed composite works without a key using market data and Cboe's
+daily put/call page. Add Alpha Vantage if you want the optional news-sentiment
+component:
+
+```env
+ALPHA_VANTAGE_API_KEY=...
+AI_TRADER_FEAR_GREED_SNAPSHOT_PATH=data/live/fear_greed.jsonl
+AI_TRADER_FEAR_GREED_COMPONENT_MAX_AGE_MINUTES=240
+AI_TRADER_FEAR_GREED_MIN_COMPONENTS=4
+```
+
+Fetch and persist the latest snapshot:
+
+```powershell
+ai-trader fear-greed
 ```
 
 ### IBKR
@@ -195,9 +219,104 @@ ai-trader backtest monte-carlo --result-file result.json --n-sims 10000
 ai-trader review-nightly --outcomes-file outcomes.jsonl
 ```
 
+Run the full weekly evolution cycle (discovery → source implementation → ingestion → training → promotion gate):
+
+```powershell
+python scripts\weekly_evolution.py
+# Skip the source implementation step:
+python scripts\weekly_evolution.py --skip-implementation
+```
+
+Run overnight ingest only:
+
+```powershell
+python scripts\ingest_training_data.py --out logs\training_examples.jsonl
+```
+
+Fast local ingest knobs for high-bandwidth machines:
+
+```powershell
+python scripts\ingest_training_data.py `
+  --out logs\training_examples.jsonl `
+  --source-workers 12 `
+  --price-workers 16 `
+  --cache-dir data\cache `
+  --profile-out logs\ingestion_profile.json
+```
+
+Environment equivalents:
+
+```env
+AI_TRADER_INGESTION_SOURCE_WORKERS=12
+AI_TRADER_INGESTION_PRICE_WORKERS=16
+AI_TRADER_INGESTION_TICKER_WORKERS=8
+AI_TRADER_INGESTION_HTTP_CONNECTIONS=64
+AI_TRADER_INGESTION_WRITE_BUFFER=32768
+AI_TRADER_INGESTION_CACHE_DIR=data/cache
+AI_TRADER_INGESTION_PROFILE_PATH=logs/ingestion_profile.json
+```
+
+When these worker counts are not set, ingestion auto-detects CPU cores, available
+RAM, and network bandwidth. Bandwidth is measured with a short download probe and
+cached for 24 hours in `data/cache/hardware_profile.json`. To pin or disable the
+network portion of the detector:
+
+```env
+AI_TRADER_INGESTION_NETWORK_MBPS=250
+AI_TRADER_INGESTION_NETWORK_PROBE=0
+```
+
+The profile report lists per-source timings, cache hits/misses, and the slowest
+stages so you can raise or lower workers based on actual provider throttling.
+
+## Label Review
+
+Each ingest run auto-labels every training example with an outcome tier and signal quality
+tier. Examples where the labeler's confidence is low are queued for human review in
+`data/review_queue.jsonl`. The end of every ingest run prints how many items are pending.
+
+Check queue status:
+
+```powershell
+python scripts\review_labels.py --status
+```
+
+Step through pending items interactively:
+
+```powershell
+python scripts\review_labels.py
+```
+
+Shortcuts during review:
+
+| Key | Action |
+|---|---|
+| `Enter` | Accept the auto-label as-is |
+| `o sw\|w\|n\|l\|sl` | Override outcome label (strong_win / win / neutral / loss / strong_loss) |
+| `q h\|m\|l` | Override signal quality (high / medium / low) |
+| `s` | Skip — leave in queue for later |
+| `x` | Exit and save progress |
+
+Confirmed labels are appended to `logs/human_labeled_examples.jsonl`. To batch-confirm all
+auto-labels without prompting (e.g. for a first-run baseline):
+
+```powershell
+python scripts\review_labels.py --auto-confirm
+```
+
+Label fields on every `LocalTrainingExample`:
+
+| Field | Values | Notes |
+|---|---|---|
+| `outcome_label` | `strong_win` `win` `neutral` `loss` `strong_loss` | Based on realized `pnl_pct` |
+| `signal_quality` | `high` `medium` `low` | Based on signal count, avg confidence, combined strength |
+| `label_confidence` | 0–1 | Labeler's confidence in `signal_quality` assignment |
+| `label_source` | `auto` `human` `none` | `none` = unlabeled (old examples); `human` = reviewer-confirmed |
+| `needs_review` | bool | True when sent to review queue |
+
 ## Local GUI
 
-Launch the browser console:
+Launch the local frontend:
 
 ```powershell
 ai-trader gui
@@ -209,23 +328,47 @@ Open this URL if the browser does not open automatically:
 http://127.0.0.1:8787
 ```
 
-The GUI can run:
+Run on a different port or keep the browser closed:
 
-- status
-- news analysis
-- final reasoning
-- local training
-- RAG indexing/querying
-- IBKR position checks
-- trade-plan dry runs/orders sized from account balance or a stated starting balance
-- backtests and Monte Carlo
-- nightly review and build loop
-- one-cycle autopilot runs
-- background bridge server startup
+```powershell
+ai-trader gui --port 8790 --no-open-browser
+```
 
-Trade actions still use the same `.env`, IBKR, and live-trading safety gates as the CLI.
-Leave Shares blank to let the bot size from balance. Use Starting Balance as a simulated
-capital/risk budget for dry runs and backtests.
+The GUI is a full local control surface:
+
+- **Dashboard:** provider readiness, training-example counts, pending review count,
+  hardware-tuned ingestion workers, cache paths, and recent artifacts.
+- **Workbench:** whitelisted CLI workflows with generated forms and command output.
+  Long-running jobs such as ingestion stream logs live.
+- **Label Review:** queue browser for low-confidence labels, with accept, skip,
+  outcome override, and signal-quality override controls.
+- **Artifacts:** preview recent JSON, JSONL, log, and text files from `logs/`,
+  `data/models/`, and `data/cache/`.
+
+The workbench can run status, news analysis, final reasoning, local training,
+RAG indexing/querying, IBKR position checks, trade-plan dry runs/orders,
+backtests, Monte Carlo, ingestion, nightly review, build loop, autopilot, and
+background bridge startup.
+
+The frontend talks to these local endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `/api/overview` | Dashboard metrics, provider status, hardware profile, recent artifacts |
+| `/api/actions` | Whitelisted action metadata and form fields |
+| `/api/run` | Blocking command execution |
+| `/api/stream` | Live command output via server-sent events |
+| `/api/review` | Pending label-review items |
+| `/api/review/decide` | Accept, skip, or override a queued label |
+| `/api/artifact?path=...` | Safe in-repository artifact preview |
+
+Trade actions still use the same `.env`, IBKR, and live-trading safety gates as
+the CLI. Leave Shares blank to let the bot size from balance. Use Starting
+Balance as a simulated capital/risk budget for dry runs and backtests.
+
+The GUI writes process output to the same `logs/` directory as the CLI. If you
+start it from another shell and need diagnostics, check `logs/ai_trader.log` and
+any `logs/gui_<action>_*.log` files created by background actions.
 
 ## Balance-Based Trading
 

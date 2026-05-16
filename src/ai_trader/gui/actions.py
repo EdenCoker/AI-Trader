@@ -362,6 +362,43 @@ ACTIONS: dict[str, ActionSpec] = {
         timeout_s=0,
         background=True,
     ),
+    "review_status": ActionSpec(
+        action_id="review_status",
+        label="📊 Review Queue Status",
+        group="Label Review",
+        command=(),  # handled in build_command
+        fields=(
+            FieldSpec(
+                "queue",
+                "Queue File",
+                default="data/review_queue.jsonl",
+                placeholder="data/review_queue.jsonl",
+            ),
+        ),
+        timeout_s=30,
+    ),
+    "review_autoconfirm": ActionSpec(
+        action_id="review_autoconfirm",
+        label="✅ Auto-Confirm All Labels",
+        group="Label Review",
+        command=(),  # handled in build_command
+        fields=(
+            FieldSpec(
+                "queue",
+                "Queue File",
+                default="data/review_queue.jsonl",
+                placeholder="data/review_queue.jsonl",
+            ),
+            FieldSpec(
+                "out",
+                "Confirmed Output",
+                default="logs/human_labeled_examples.jsonl",
+                placeholder="logs/human_labeled_examples.jsonl",
+            ),
+        ),
+        timeout_s=120,
+        streaming=True,
+    ),
 }
 
 
@@ -374,6 +411,19 @@ def build_command(action_id: str, inputs: dict[str, Any]) -> tuple[str, ...]:
         spec = ACTIONS[action_id]
     except KeyError as exc:
         raise ValueError(f"Unknown GUI action: {action_id}") from exc
+
+    _REVIEW_SCRIPT = str(
+        Path(__file__).resolve().parent.parent.parent.parent / "scripts" / "review_labels.py"
+    )
+
+    if action_id == "review_status":
+        queue = str(inputs.get("queue", "data/review_queue.jsonl")).strip() or "data/review_queue.jsonl"
+        return (sys.executable, _REVIEW_SCRIPT, "--status", "--queue", queue)
+
+    if action_id == "review_autoconfirm":
+        queue = str(inputs.get("queue", "data/review_queue.jsonl")).strip() or "data/review_queue.jsonl"
+        out = str(inputs.get("out", "logs/human_labeled_examples.jsonl")).strip() or "logs/human_labeled_examples.jsonl"
+        return (sys.executable, _REVIEW_SCRIPT, "--auto-confirm", "--queue", queue, "--out", out)
 
     # Ingest calls the script directly (not a CLI subcommand)
     if action_id == "ingest":

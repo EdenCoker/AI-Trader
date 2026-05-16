@@ -67,6 +67,11 @@ class SentimentProvider(Protocol):
         """Fetch timestamped public social mentions."""
 
 
+class FearGreedProvider(Protocol):
+    def fetch_snapshot(self, *, now: datetime | None = None):
+        """Fetch a live market fear/greed snapshot."""
+
+
 class MacroProvider(Protocol):
     def fetch_observations(
         self,
@@ -75,4 +80,3 @@ class MacroProvider(Protocol):
         released_before: date,
     ) -> Sequence[MacroObservation]:
         """Fetch macro observations by release date."""
-

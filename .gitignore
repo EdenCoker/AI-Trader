@@ -12,6 +12,8 @@ logs/
 .polygon_cache/
 .test_report.json
 data/faiss/
+data/cache/
+data/live/
 data/models/
 data/rag/
 data/raw/

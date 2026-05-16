@@ -15,6 +15,7 @@ from ai_trader.evolution.ingestion_orchestrator import IngestionOrchestrator
 from ai_trader.evolution.promoter import ModelPromoter
 from ai_trader.evolution.promotion_gate import PromotionGate
 from ai_trader.evolution.reports import AgentReport
+from ai_trader.evolution.source_implementation import SourceImplementationAgent
 from ai_trader.evolution.ticker_expansion import TickerExpansionAgent
 from ai_trader.evolution.training_agent import TrainingAgent
 
@@ -24,6 +25,7 @@ def main() -> None:
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--skip-ingest", action="store_true")
     parser.add_argument("--skip-training", action="store_true")
+    parser.add_argument("--skip-implementation", action="store_true")
     parser.add_argument("--no-alerts", action="store_true")
     args = parser.parse_args()
 
@@ -39,6 +41,12 @@ def main() -> None:
         return step
 
     discovery = append(DiscoveryAgent(run_id=run_id).run())
+    if not args.skip_implementation:
+        implementation = append(SourceImplementationAgent(run_id=run_id).run())
+        if not implementation.ok:
+            report["status"] = "failed"
+            _finish(report, run_id, alert=not args.no_alerts)
+            return
     expansion = append(TickerExpansionAgent(max_adds=20, run_id=run_id).run())
 
     if not discovery.ok or not expansion.ok:

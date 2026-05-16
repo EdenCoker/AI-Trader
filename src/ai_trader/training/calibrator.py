@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,8 +10,10 @@ from pydantic import BaseModel, ConfigDict, Field
 from ai_trader.domain.signals import SignalBundle, SignalDirection
 from ai_trader.intelligence.models import NarrativeIntelligence
 from ai_trader.intelligence.trade_plan import HorizonClass, TradePlan
-from ai_trader.training.data import LocalTrainingExample
 from ai_trader.training.features import FEATURE_NAMES, extract_features
+
+if TYPE_CHECKING:
+    from ai_trader.training.data import LocalTrainingExample
 
 
 class LocalCalibratorModel(BaseModel):

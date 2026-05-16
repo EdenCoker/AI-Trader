@@ -24,6 +24,10 @@ class DataSourceRecord(BaseModel):
     coverage_score: float = Field(default=0.0, ge=0.0, le=1.0)
     freshness_score: float | None = Field(default=None, ge=0.0, le=1.0)
     complexity_score: float = Field(default=0.2, ge=0.0, le=1.0)
+    free_tier: bool = True
+    category: str = "general"
+    profitability_proxy: float = Field(default=0.0, ge=0.0, le=1.0)
+    ingestion_adapter: str | None = None
     notes: str | None = None
 
 

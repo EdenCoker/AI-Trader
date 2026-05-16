@@ -12,6 +12,58 @@ try:
 except ImportError:  # pragma: no cover - dependency is declared, fallback keeps tests lightweight.
     load_dotenv = None
 
+# Hardware-aware defaults for ingestion worker counts.
+# The expensive bits are cached once per process, while explicit env overrides
+# still win without forcing a probe.
+@lru_cache(maxsize=1)
+def _hw_profile():
+    try:
+        from ai_trader.ingestion.hardware import detect
+
+        return detect()
+    except Exception:
+        return None
+
+
+def _hw_source_workers() -> int:
+    override = _env_int_or_none("AI_TRADER_INGESTION_SOURCE_WORKERS")
+    if override is not None:
+        return override
+    profile = _hw_profile()
+    return profile.source_workers if profile is not None else 8
+
+
+def _hw_price_workers() -> int:
+    override = _env_int_or_none("AI_TRADER_INGESTION_PRICE_WORKERS")
+    if override is not None:
+        return override
+    profile = _hw_profile()
+    return profile.price_workers if profile is not None else 8
+
+
+def _hw_ticker_workers() -> int:
+    override = _env_int_or_none("AI_TRADER_INGESTION_TICKER_WORKERS")
+    if override is not None:
+        return override
+    profile = _hw_profile()
+    return profile.ticker_workers if profile is not None else 8
+
+
+def _hw_http_connections() -> int:
+    override = _env_int_or_none("AI_TRADER_INGESTION_HTTP_CONNECTIONS")
+    if override is not None:
+        return override
+    profile = _hw_profile()
+    return profile.http_connections if profile is not None else 32
+
+
+def _hw_write_buffer() -> int:
+    override = _env_int_or_none("AI_TRADER_INGESTION_WRITE_BUFFER")
+    if override is not None:
+        return override
+    profile = _hw_profile()
+    return profile.write_buffer if profile is not None else 8192
+
 
 def _env(name: str, default: str | None = None) -> str | None:
     value = os.getenv(name)
@@ -43,6 +95,16 @@ def _env_int(name: str, default: int) -> int:
         return int(value)
     except ValueError:
         return default
+
+
+def _env_int_or_none(name: str) -> int | None:
+    value = _env(name)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
+        return None
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -84,10 +146,23 @@ class AppSettings(BaseModel):
         )
         or ""
     )
-    alpha_vantage_api_key: SecretStr | None = Field(default_factory=lambda: _secret("ALPHA_VANTAGE_API_KEY"))
+    alpha_vantage_api_key: SecretStr | None = Field(
+        default_factory=lambda: _secret("ALPHA_VANTAGE_API_KEY")
+    )
     bls_api_key: SecretStr | None = Field(default_factory=lambda: _secret("BLS_API_KEY"))
     eia_api_key: SecretStr | None = Field(default_factory=lambda: _secret("EIA_API_KEY"))
     newsapi_api_key: SecretStr | None = Field(default_factory=lambda: _secret("NEWSAPI_API_KEY"))
+    fear_greed_snapshot_path: Path = Field(
+        default_factory=lambda: Path(
+            _env("AI_TRADER_FEAR_GREED_SNAPSHOT_PATH", "data/live/fear_greed.jsonl") or ""
+        )
+    )
+    fear_greed_component_max_age_minutes: int = Field(
+        default_factory=lambda: _env_int("AI_TRADER_FEAR_GREED_COMPONENT_MAX_AGE_MINUTES", 240)
+    )
+    fear_greed_min_components: int = Field(
+        default_factory=lambda: _env_int("AI_TRADER_FEAR_GREED_MIN_COMPONENTS", 4)
+    )
     openai_api_key: SecretStr | None = Field(default_factory=lambda: _secret("OPENAI_API_KEY"))
     openai_base_url: str = Field(
         default_factory=lambda: _env(
@@ -100,20 +175,30 @@ class AppSettings(BaseModel):
     )
     llm_backend: str = Field(default_factory=lambda: _env("AI_TRADER_LLM_BACKEND", "openai") or "")
     llm_model: str = Field(
-        default_factory=lambda: _env("AI_TRADER_LLM_MODEL") or _env("AI_TRADER_FINAL_REASONER_MODEL", "gpt-4.5") or ""
+        default_factory=lambda: _env("AI_TRADER_LLM_MODEL")
+        or _env("AI_TRADER_FINAL_REASONER_MODEL", "gpt-4.5")
+        or ""
     )
     ollama_base_url: str = Field(
         default_factory=lambda: _env("OLLAMA_HOST", _env("AI_TRADER_OLLAMA_BASE_URL", "http://localhost:11434"))
         or "http://localhost:11434"
     )
-    llm_timeout_s: float = Field(default_factory=lambda: _env_float("AI_TRADER_LLM_TIMEOUT_S", 60.0))
+    llm_timeout_s: float = Field(
+        default_factory=lambda: _env_float("AI_TRADER_LLM_TIMEOUT_S", 60.0)
+    )
 
-    rag_enabled: bool = Field(default_factory=lambda: _env_bool("AI_TRADER_RAG_ENABLED", default=False))
+    rag_enabled: bool = Field(
+        default_factory=lambda: _env_bool("AI_TRADER_RAG_ENABLED", default=False)
+    )
     rag_index_dir: Path = Field(
-        default_factory=lambda: Path(_env("AI_TRADER_RAG_INDEX_DIR", "data/rag/trader_memory") or "")
+        default_factory=lambda: Path(
+            _env("AI_TRADER_RAG_INDEX_DIR", "data/rag/trader_memory") or ""
+        )
     )
     rag_corpus_dir: Path = Field(
-        default_factory=lambda: Path(_env("AI_TRADER_RAG_CORPUS_DIR", "examples/trader_corpus") or "")
+        default_factory=lambda: Path(
+            _env("AI_TRADER_RAG_CORPUS_DIR", "examples/trader_corpus") or ""
+        )
     )
     embeddings_backend: str = Field(
         default_factory=lambda: _env("AI_TRADER_EMBEDDINGS_BACKEND", "local") or ""
@@ -122,7 +207,10 @@ class AppSettings(BaseModel):
         default_factory=lambda: _env("AI_TRADER_LOCAL_EMBEDDING_MODEL", "all-MiniLM-L6-v2") or ""
     )
     openai_embedding_model: str = Field(
-        default_factory=lambda: _env("AI_TRADER_OPENAI_EMBEDDING_MODEL", "text-embedding-3-small") or ""
+        default_factory=lambda: _env(
+            "AI_TRADER_OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
+        )
+        or ""
     )
     local_training_enabled: bool = Field(
         default_factory=lambda: _env_bool("AI_TRADER_LOCAL_TRAINING_ENABLED", default=False)
@@ -174,7 +262,22 @@ class AppSettings(BaseModel):
     polygon_cache_dir: Path = Field(
         default_factory=lambda: Path(_env("POLYGON_CACHE_DIR", ".polygon_cache") or "")
     )
-    polygon_rate_limit_rpm: int = Field(default_factory=lambda: _env_int("POLYGON_RATE_LIMIT_RPM", 5))
+    polygon_rate_limit_rpm: int = Field(
+        default_factory=lambda: _env_int("POLYGON_RATE_LIMIT_RPM", 5)
+    )
+    ingestion_cache_dir: Path = Field(
+        default_factory=lambda: Path(_env("AI_TRADER_INGESTION_CACHE_DIR", "data/cache") or "")
+    )
+    ingestion_profile_path: Path = Field(
+        default_factory=lambda: Path(
+            _env("AI_TRADER_INGESTION_PROFILE_PATH", "logs/ingestion_profile.json") or ""
+        )
+    )
+    ingestion_source_workers: int = Field(default_factory=_hw_source_workers)
+    ingestion_price_workers: int = Field(default_factory=_hw_price_workers)
+    ingestion_ticker_workers: int = Field(default_factory=_hw_ticker_workers)
+    ingestion_http_connections: int = Field(default_factory=_hw_http_connections)
+    ingestion_write_buffer: int = Field(default_factory=_hw_write_buffer)
 
     database_url: str = Field(
         default_factory=lambda: _env(
@@ -184,7 +287,9 @@ class AppSettings(BaseModel):
         or ""
     )
     faiss_index_path: Path = Field(
-        default_factory=lambda: Path(_env("FAISS_INDEX_PATH", "data/faiss/trader_memory.index") or "")
+        default_factory=lambda: Path(
+            _env("FAISS_INDEX_PATH", "data/faiss/trader_memory.index") or ""
+        )
     )
 
     def provider_status(self) -> dict[str, bool]:
@@ -197,6 +302,7 @@ class AppSettings(BaseModel):
             "x": self.x_bearer_token is not None,
             "reddit": self.reddit_client_id is not None and self.reddit_client_secret is not None,
             "sec_edgar": "set SEC_EDGAR_USER_AGENT" not in self.sec_edgar_user_agent,
+            "live_fear_greed": True,
             "openai": self.openai_api_key is not None,
             "ollama": bool(self.ollama_base_url),
             "ibkr": bool(self.ibkr_host) and bool(self.ibkr_port),
@@ -217,6 +323,10 @@ class AppSettings(BaseModel):
             "x_bearer_token",
             "reddit_client_id",
             "reddit_client_secret",
+            "alpha_vantage_api_key",
+            "bls_api_key",
+            "eia_api_key",
+            "newsapi_api_key",
             "openai_api_key",
         ):
             if data.get(key):

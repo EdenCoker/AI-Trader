@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import json
 import logging
 import math
 import re
@@ -39,8 +40,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from ai_trader.config import get_settings
 from ai_trader.domain.signals import Signal, SignalBundle, SignalDirection
+from ai_trader.ingestion import IngestionProfiler, PriceCache, run_named_tasks
 from ai_trader.intelligence.trade_plan import TradePlan, horizon_class_for_days
+from ai_trader.providers.fear_greed import LiveFearGreedProvider
 from ai_trader.training.data import LocalTrainingExample
+from ai_trader.training.labeler import auto_label, apply_label
+from ai_trader.training.review_queue import DEFAULT_QUEUE_PATH, enqueue
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,19 +84,74 @@ INDUSTRIAL_TICKERS = {
 XL = {"engine": "openpyxl"}  # xlsx reader (openpyxl is always available)
 
 
-def load_fear_greed() -> pd.DataFrame:
-    """Return DataFrame indexed by date with column 'fear_greed'."""
-    log.info("  loading fear-and-greed.xlsx …")
-    df = pd.read_excel(TRAINING_DATA / "fear-and-greed.xlsx", parse_dates=["Date"], **XL)
-    df = df.rename(columns={"Date": "date", "Index": "fear_greed"})
-    df["date"] = df["date"].dt.date
-    return df.set_index("date").sort_index()
+def _find_xlsx(name: str) -> Path:
+    """Resolve an xlsx filename inside TRAINING_DATA.
+
+    Accepts any file whose name starts with the canonical stem, so downloads
+    like 'fear-and-greed (1).xlsx', 'fear-and-greed (2).xlsx', or
+    'fear-and-greed - Copy.xlsx' are all matched automatically.
+    The exact match (if present) is preferred; otherwise the first glob hit
+    sorted alphabetically is returned.
+    Raises FileNotFoundError if no matching file exists.
+    """
+    stem, suffix = name.rsplit(".", 1)
+    exact = TRAINING_DATA / name
+    if exact.exists():
+        return exact
+    matches = sorted(TRAINING_DATA.glob(f"{stem}*.{suffix}"))
+    if matches:
+        return matches[0]
+    raise FileNotFoundError(
+        f"Cannot find any file matching '{stem}*.{suffix}' in '{TRAINING_DATA}'."
+    )
+
+
+def load_fear_greed(*, include_live: bool = True) -> pd.DataFrame:
+    """Return DataFrame indexed by date with column 'fear_greed'.
+
+    Historical rows remain workbook-backed to avoid look-ahead. When requested,
+    a live composite snapshot is appended for today's date only.
+    """
+    try:
+        path = _find_xlsx("fear-and-greed.xlsx")
+    except FileNotFoundError:
+        log.warning("fear-and-greed workbook missing; relying on live/default values")
+        df = pd.DataFrame(columns=["fear_greed"])
+    else:
+        log.info("  loading %s ...", path.name)
+        df = pd.read_excel(path, parse_dates=["Date"], **XL)
+        df = df.rename(columns={"Date": "date", "Index": "fear_greed"})
+        df["date"] = df["date"].dt.date
+        df = df.set_index("date").sort_index()
+
+    if include_live:
+        try:
+            provider = LiveFearGreedProvider()
+            snapshot = provider.fetch_snapshot()
+            provider.append_snapshot(snapshot)
+            live_date = snapshot.observed_at.astimezone(datetime.UTC).date()
+            df.loc[live_date, "fear_greed"] = snapshot.value
+            df.loc[live_date, "fear_greed_confidence"] = snapshot.confidence
+            df.loc[live_date, "fear_greed_source"] = snapshot.source
+            log.info(
+                "  live fear/greed=%s (%s, confidence=%.2f, components=%d fresh/%d stale)",
+                snapshot.value,
+                snapshot.label,
+                snapshot.confidence,
+                snapshot.fresh_component_count,
+                snapshot.stale_component_count,
+            )
+        except Exception as exc:
+            log.warning("live fear/greed snapshot failed; using historical/default values: %s", exc)
+
+    return df.sort_index()
 
 
 def load_wsb() -> pd.DataFrame:
     """Return DataFrame with columns: ticker, date, wsb_sentiment, wsb_mentions."""
-    log.info("  loading wsb-all.xlsx …")
-    df = pd.read_excel(TRAINING_DATA / "wsb-all.xlsx", parse_dates=["Datetime"], **XL)
+    path = _find_xlsx("wsb-all.xlsx")
+    log.info("  loading %s …", path.name)
+    df = pd.read_excel(path, parse_dates=["Datetime"], **XL)
     df = df.rename(columns={
         "Ticker": "ticker",
         "Datetime": "date",
@@ -104,9 +164,9 @@ def load_wsb() -> pd.DataFrame:
 
 
 def load_congress() -> pd.DataFrame:
-    """Return DataFrame: ticker, date, congress_buy, congress_sell, congress_amount."""
-    path = TRAINING_DATA / "congress-trading-all.xlsx"
-    log.info("  loading congress-trading-all.xlsx …")
+    """Return DataFrame: ticker, date, congress_buy, congress_sell, congress_amount, house/senate columns."""
+    path = _find_xlsx("congress-trading-all.xlsx")
+    log.info("  loading %s …", path.name)
     df = pd.read_excel(path, **XL)
     # File may be an API error blob — check for expected columns
     if "Ticker" not in df.columns and "ticker" not in df.columns:
@@ -116,25 +176,47 @@ def load_congress() -> pd.DataFrame:
     ticker_col = "Ticker" if "Ticker" in df.columns else "ticker"
     date_col = next((c for c in df.columns if "date" in c.lower() or "filed" in c.lower()), None)
     if date_col is None:
-        return pd.DataFrame(columns=["ticker", "date", "congress_buy", "congress_sell", "congress_amount"])
+        return pd.DataFrame(columns=["ticker", "date", "congress_buy", "congress_sell", "congress_amount",
+                                      "house_buy", "house_sell", "house_amount",
+                                      "senate_buy", "senate_sell", "senate_amount"])
     df["date"] = pd.to_datetime(df[date_col], errors="coerce").dt.date
     df["ticker"] = df[ticker_col].astype(str).str.upper()
     trans_col = next((c for c in df.columns if "transaction" in c.lower() or "type" in c.lower()), None)
     amt_col = next((c for c in df.columns if "amount" in c.lower() or "range" in c.lower()), None)
+    chamber_col = next((c for c in df.columns if "chamber" in c.lower() or "body" in c.lower()), None)
     df["congress_buy"] = 0
     df["congress_sell"] = 0
     df["congress_amount"] = 0.0
+    df["chamber"] = "unknown"
     if trans_col:
         df["congress_buy"] = df[trans_col].astype(str).str.lower().str.contains("purchase|buy").astype(int)
         df["congress_sell"] = df[trans_col].astype(str).str.lower().str.contains("sale|sell").astype(int)
     if amt_col:
         df["congress_amount"] = pd.to_numeric(df[amt_col], errors="coerce").fillna(0)
+    if chamber_col:
+        df["chamber"] = df[chamber_col].astype(str).str.lower()
     out = df.groupby(["ticker", "date"]).agg(
         congress_buy=("congress_buy", "sum"),
         congress_sell=("congress_sell", "sum"),
         congress_amount=("congress_amount", "sum"),
     ).reset_index()
-    return out
+    house_df = df[df["chamber"].str.contains("house", na=False)].groupby(["ticker", "date"]).agg(
+        house_buy=("congress_buy", "sum"),
+        house_sell=("congress_sell", "sum"),
+        house_amount=("congress_amount", "sum"),
+    ).reset_index()
+    senate_df = df[df["chamber"].str.contains("senate", na=False)].groupby(["ticker", "date"]).agg(
+        senate_buy=("congress_buy", "sum"),
+        senate_sell=("congress_sell", "sum"),
+        senate_amount=("congress_amount", "sum"),
+    ).reset_index()
+    result = out.merge(house_df, on=["ticker", "date"], how="left")
+    result = result.merge(senate_df, on=["ticker", "date"], how="left")
+    for col in ["house_buy", "house_sell", "senate_buy", "senate_sell"]:
+        result[col] = result[col].fillna(0).astype(int)
+    for col in ["house_amount", "senate_amount"]:
+        result[col] = result[col].fillna(0.0)
+    return result
 
 
 def _quiver_paginate(url: str, headers: dict, params: dict | None = None, page_size: int = 500, max_pages: int = 40) -> list[dict]:
@@ -177,15 +259,17 @@ def _fetch_congress_from_api() -> pd.DataFrame:
     rows = _quiver_paginate("https://api.quiverquant.com/beta/bulk/congresstrading", headers)
     log.info("Quiver congress API: %d total rows fetched", len(rows))
     # Also pull house + senate live endpoints (most recent, Tier 1)
-    for live_url, label in [
-        ("https://api.quiverquant.com/beta/live/congresstrading", "live/congresstrading"),
-        ("https://api.quiverquant.com/beta/live/housetrading", "live/housetrading"),
-        ("https://api.quiverquant.com/beta/live/senatetrading", "live/senatetrading"),
+    for live_url, label, chamber_tag in [
+        ("https://api.quiverquant.com/beta/live/congresstrading", "live/congresstrading", "unknown"),
+        ("https://api.quiverquant.com/beta/live/housetrading", "live/housetrading", "house"),
+        ("https://api.quiverquant.com/beta/live/senatetrading", "live/senatetrading", "senate"),
     ]:
         try:
             r = httpx.get(live_url, headers=headers, timeout=30)
             r.raise_for_status()
             extra = r.json() if isinstance(r.json(), list) else []
+            for item in extra:
+                item["_chamber"] = chamber_tag
             rows.extend(extra)
             log.info("Quiver %s: %d rows", label, len(extra))
         except Exception as exc:
@@ -202,21 +286,42 @@ def _fetch_congress_from_api() -> pd.DataFrame:
             continue
         tx = str(item.get("Transaction") or "").lower()
         amount = float(item.get("RangeHigh") or item.get("AmountHigh") or 0)
+        chamber = str(item.get("_chamber") or item.get("chamber") or "unknown").lower()
         records.append({
             "ticker": ticker,
             "date": d,
             "congress_buy": 1 if "purchase" in tx else 0,
             "congress_sell": 1 if "sale" in tx else 0,
             "congress_amount": amount,
+            "chamber": chamber,
         })
     if not records:
-        return pd.DataFrame(columns=["ticker", "date", "congress_buy", "congress_sell", "congress_amount"])
+        return pd.DataFrame(columns=["ticker", "date", "congress_buy", "congress_sell", "congress_amount",
+                                      "house_buy", "house_sell", "house_amount",
+                                      "senate_buy", "senate_sell", "senate_amount"])
     df = pd.DataFrame(records)
-    return df.groupby(["ticker", "date"]).agg(
+    agg = df.groupby(["ticker", "date"]).agg(
         congress_buy=("congress_buy", "sum"),
         congress_sell=("congress_sell", "sum"),
         congress_amount=("congress_amount", "sum"),
     ).reset_index()
+    house_df = df[df["chamber"] == "house"].groupby(["ticker", "date"]).agg(
+        house_buy=("congress_buy", "sum"),
+        house_sell=("congress_sell", "sum"),
+        house_amount=("congress_amount", "sum"),
+    ).reset_index()
+    senate_df = df[df["chamber"] == "senate"].groupby(["ticker", "date"]).agg(
+        senate_buy=("congress_buy", "sum"),
+        senate_sell=("congress_sell", "sum"),
+        senate_amount=("congress_amount", "sum"),
+    ).reset_index()
+    out = agg.merge(house_df, on=["ticker", "date"], how="left")
+    out = out.merge(senate_df, on=["ticker", "date"], how="left")
+    for col in ["house_buy", "house_sell", "senate_buy", "senate_sell"]:
+        out[col] = out[col].fillna(0).astype(int)
+    for col in ["house_amount", "senate_amount"]:
+        out[col] = out[col].fillna(0.0)
+    return out
 
 
 def _fetch_lobbying_from_api() -> pd.DataFrame:
@@ -280,9 +385,12 @@ def _fetch_govcontracts_from_api() -> pd.DataFrame:
 def load_lobbying() -> pd.DataFrame:
     """Return per-ticker/date lobbying amount — Excel file merged with live API data."""
     frames = []
-    excel_path = TRAINING_DATA / "lobbying-recent.xlsx"
-    if excel_path.exists():
-        log.info("  loading lobbying-recent.xlsx …")
+    try:
+        excel_path = _find_xlsx("lobbying-recent.xlsx")
+    except FileNotFoundError:
+        excel_path = None
+    if excel_path is not None:
+        log.info("  loading %s …", excel_path.name)
         df = pd.read_excel(excel_path, parse_dates=["Date"], **XL)
         df = df.rename(columns={"Ticker": "ticker", "Date": "date", "Amount": "lobby_amount"})
         df["date"] = pd.to_datetime(df["date"]).dt.date
@@ -303,9 +411,12 @@ def load_lobbying() -> pd.DataFrame:
 def load_contracts() -> pd.DataFrame:
     """Return per-ticker/date government contract amount — Excel merged with live API data."""
     frames = []
-    excel_path = TRAINING_DATA / "contracts-recent.xlsx"
-    if excel_path.exists():
-        log.info("  loading contracts-recent.xlsx …")
+    try:
+        excel_path = _find_xlsx("contracts-recent.xlsx")
+    except FileNotFoundError:
+        excel_path = None
+    if excel_path is not None:
+        log.info("  loading %s …", excel_path.name)
         df = pd.read_excel(excel_path, parse_dates=["Date"], **XL)
         df = df.rename(columns={"Ticker": "ticker", "Date": "date", "Amount": "contract_amount"})
         df["date"] = pd.to_datetime(df["date"]).dt.date
@@ -325,8 +436,9 @@ def load_contracts() -> pd.DataFrame:
 
 def load_patents() -> pd.DataFrame:
     """Return per-ticker/month patent count."""
-    log.info("  loading patents-recent.xlsx (large file, may take a moment) …")
-    df = pd.read_excel(TRAINING_DATA / "patents-recent.xlsx", **XL)
+    path = _find_xlsx("patents-recent.xlsx")
+    log.info("  loading %s (large file, may take a moment) …", path.name)
+    df = pd.read_excel(path, **XL)
     ticker_col = "compu_ticker" if "compu_ticker" in df.columns else df.columns[0]
     date_col = "pubdate" if "pubdate" in df.columns else None
     if date_col is None:
@@ -416,6 +528,7 @@ def load_insider_trades(
     tickers: list[str],
     start: datetime.date,
     end: datetime.date,
+    workers: int = 8,
 ) -> pd.DataFrame:
     """Fetch Form 4 transactions from EDGAR and aggregate by ticker/disclosure date."""
 
@@ -428,6 +541,7 @@ def load_insider_trades(
         "insider_value_usd",
         "insider_officer_count",
         "insider_director_count",
+        "insider_unique_filers",
     ]
     settings = get_settings()
     if "set SEC_EDGAR_USER_AGENT" in settings.sec_edgar_user_agent:
@@ -436,18 +550,28 @@ def load_insider_trades(
 
     ticker_map = _sec_company_ticker_map(settings)
     rows: list[dict] = []
-    for ticker in tickers:
+
+    def _fetch_ticker_form4(ticker: str) -> list[dict]:
         ticker = ticker.upper()
         cik = ticker_map.get(ticker)
         filings = _sec_full_text_form4_hits(ticker, start, end, settings)
         if not filings and cik:
             filings = _sec_submission_form4_hits(cik, start, end, settings)
-        # Cap to most-recent 50 filings per ticker to avoid multi-hour SEC crawls
+        result: list[dict] = []
         for filing in filings[:50]:
-            rows.extend(_parse_form4_transactions(ticker, filing, settings))
-        if rows:
-            log.info("  Form 4 %s: %d transactions so far", ticker, len(rows))
-        time.sleep(0.1)
+            result.extend(_parse_form4_transactions(ticker, filing, settings))
+        return result
+
+    # Parallelise across tickers; cap at workers (SEC rate limit: ~10 req/s)
+    _form4_workers = min(workers, max(1, len(tickers)))
+    from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _ac
+    with _TPE(max_workers=_form4_workers, thread_name_prefix="form4") as _ex:
+        _futures = {_ex.submit(_fetch_ticker_form4, t): t for t in tickers}
+        for _fut in _ac(_futures):
+            _ticker_rows = _fut.result()
+            if _ticker_rows:
+                rows.extend(_ticker_rows)
+                log.info("  Form 4 %s: %d transactions", _futures[_fut].upper(), len(_ticker_rows))
 
     if not rows:
         return pd.DataFrame(columns=columns)
@@ -462,6 +586,7 @@ def load_insider_trades(
         insider_value_usd=("value_usd", "sum"),
         insider_officer_count=("is_officer", "sum"),
         insider_director_count=("is_director", "sum"),
+        insider_unique_filers=("reporter_cik", "nunique"),
     ).reset_index()
     return out[columns]
 
@@ -611,6 +736,7 @@ def load_13f_changes(
         "institutional_delta_pct",
         "institutional_manager",
         "institutional_market_value_usd",
+        "institutional_is_new_position",
     ]
     settings = get_settings()
     if "set SEC_EDGAR_USER_AGENT" in settings.sec_edgar_user_agent:
@@ -657,6 +783,7 @@ def load_13f_changes(
                         "institutional_delta_pct": 1.0 if previous_shares is None else delta_pct,
                         "institutional_manager": manager_name,
                         "institutional_market_value_usd": holding["market_value_usd"],
+                        "institutional_is_new_position": previous_shares is None,
                     }
                 )
     if not rows:
@@ -867,6 +994,7 @@ def _parse_form4_transactions(ticker: str, filing: dict, settings) -> list[dict]
     issuer_ticker = _xml_text(root, ".//issuerTradingSymbol") or ticker
     is_officer = _xml_text(root, ".//reportingOwnerRelationship/isOfficer") == "1"
     is_director = _xml_text(root, ".//reportingOwnerRelationship/isDirector") == "1"
+    reporter_cik = _xml_text(root, ".//rptOwnerCik") or _xml_text(root, ".//reportingOwnerId/rptOwnerCik") or ""
     rows = []
     for node in root.findall(".//nonDerivativeTransaction"):
         code = (_xml_text(node, ".//transactionCoding/transactionCode") or "").upper()
@@ -889,6 +1017,7 @@ def _parse_form4_transactions(ticker: str, filing: dict, settings) -> list[dict]
                 "value_usd": value,
                 "is_officer": 1 if is_officer else 0,
                 "is_director": 1 if is_director else 0,
+                "reporter_cik": reporter_cik,
             }
         )
     return rows
@@ -1287,6 +1416,17 @@ def build_signal_bundle(
     # GDELT news tone
     gdelt_avg_tone: float = 0.0,
     gdelt_article_count: int = 0,
+    # Form 4 distinct insider cluster
+    insider_unique_filers: int = 0,
+    # House vs Senate congressional signals
+    house_buy: int = 0,
+    house_sell: int = 0,
+    house_amount: float = 0.0,
+    senate_buy: int = 0,
+    senate_sell: int = 0,
+    senate_amount: float = 0.0,
+    # 13F new position initiation
+    institutional_is_new_position: bool = False,
 ) -> SignalBundle:
     signals: list[Signal] = []
 
@@ -1306,6 +1446,38 @@ def build_signal_bundle(
             effective_date=as_of,
             horizon_days=HOLDING_DAYS,
             reasons=[f"{congress_buy} buys, {congress_sell} sells, ${congress_amount:,.0f} disclosed"],
+        ))
+
+    # House trade signal (separate from Senate — lower confidence historically)
+    if house_buy > 0 or house_sell > 0:
+        h_net = house_buy - house_sell
+        h_dir = SignalDirection.LONG if h_net > 0 else SignalDirection.SHORT
+        signals.append(Signal(
+            name="house_trade",
+            ticker=ticker,
+            source="quiver",
+            direction=h_dir,
+            strength=round(min(abs(h_net) / max(house_buy + house_sell, 1), 1.0), 4),
+            confidence=round(min(house_amount / 500_000, 0.55) if house_amount > 0 else 0.40, 4),
+            effective_date=as_of,
+            horizon_days=HOLDING_DAYS,
+            reasons=[f"House: {house_buy} buys, {house_sell} sells, ${house_amount:,.0f}"],
+        ))
+
+    # Senate trade signal (historically stronger alpha than House)
+    if senate_buy > 0 or senate_sell > 0:
+        s_net = senate_buy - senate_sell
+        s_dir = SignalDirection.LONG if s_net > 0 else SignalDirection.SHORT
+        signals.append(Signal(
+            name="senate_trade",
+            ticker=ticker,
+            source="quiver",
+            direction=s_dir,
+            strength=round(min(abs(s_net) / max(senate_buy + senate_sell, 1), 1.0), 4),
+            confidence=round(min(senate_amount / 500_000, 0.65) if senate_amount > 0 else 0.50, 4),
+            effective_date=as_of,
+            horizon_days=HOLDING_DAYS,
+            reasons=[f"Senate: {senate_buy} buys, {senate_sell} sells, ${senate_amount:,.0f}"],
         ))
 
     # Lobbying signal — heavy lobbying → company expects upcoming regulatory benefit
@@ -1441,6 +1613,20 @@ def build_signal_bundle(
             },
         ))
 
+    # SEC Form 4 cluster signal — multiple distinct insiders buying is a stronger signal.
+    if insider_unique_filers >= 3 and insider_net_qty > 0:
+        signals.append(Signal(
+            name="sec_form4_cluster",
+            ticker=ticker,
+            source="sec_edgar",
+            direction=SignalDirection.LONG,
+            strength=round(min(insider_unique_filers / 10, 1.0) * 0.70, 4),
+            confidence=0.72,
+            effective_date=as_of,
+            horizon_days=20,
+            reasons=[f"Form 4 cluster: {insider_unique_filers} distinct insiders buying"],
+        ))
+
     # FRED macro regime signal.
     if yield_spread_2_10 is not None and ism_pmi is not None:
         macro_direction = SignalDirection.NEUTRAL
@@ -1545,6 +1731,23 @@ def build_signal_bundle(
                 "institutional_manager": institutional_manager,
                 "institutional_market_value_usd": institutional_market_value_usd,
             },
+        ))
+
+    # SEC 13F new position initiation — manager opens a brand new position (stronger signal than incremental add).
+    if institutional_is_new_position and institutional_delta_shares > 0:
+        signals.append(Signal(
+            name="institutional_initiation",
+            ticker=ticker,
+            source="sec_edgar",
+            direction=SignalDirection.LONG,
+            strength=round(min(institutional_market_value_usd / 50_000_000, 1.0) * 0.65, 4),
+            confidence=0.60,
+            effective_date=as_of,
+            horizon_days=63,
+            reasons=[
+                f"{institutional_manager or 'institutional manager'} initiated new 13F position, "
+                f"{institutional_delta_shares:,.0f} shares"
+            ],
         ))
 
     # FINRA short interest squeeze setup.
@@ -3099,40 +3302,44 @@ def load_world_bank_macro(start: datetime.date, end: datetime.date) -> pd.DataFr
     return df
 
 
-def load_open_insider(tickers: list[str], start: datetime.date, end: datetime.date) -> pd.DataFrame:
+def load_open_insider(tickers: list[str], start: datetime.date, end: datetime.date, workers: int = 8) -> pd.DataFrame:
     """
     Scrape OpenInsider.com for Form 4 insider transactions.
     Supplements SEC EDGAR Form 4 data with cluster buy/sell signals.
     Returns DataFrame: ticker, date, oi_buy_count, oi_sell_count, oi_net_value.
     """
-    records = []
-    for ticker in tickers:
+    from io import StringIO as _SIO
+    from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed as _ac
+
+    def _fetch_oi_ticker(ticker: str) -> list[dict]:
+        url = (
+            f"http://openinsider.com/screener?s={ticker}&o=&pl=&ph=&ll=&lh="
+            f"&fd=365&fdr=&td=0&tdr=&fdlyl=&fdlyh=&daysago=&xs=1"
+            f"&vl=&vh=&ocl=&och=&sic1=-1&sicl=100&sich=9999"
+            f"&grp=0&nfl=&nfh=&nil=&nih=&nol=&noh=&v2l=&v2h="
+            f"&ov=&rc=10&d=t&download=1"
+        )
         try:
-            url = (
-                f"http://openinsider.com/screener?s={ticker}&o=&pl=&ph=&ll=&lh="
-                f"&fd=365&fdr=&td=0&tdr=&fdlyl=&fdlyh=&daysago=&xs=1"
-                f"&vl=&vh=&ocl=&och=&sic1=-1&sicl=100&sich=9999"
-                f"&grp=0&nfl=&nfh=&nil=&nih=&nol=&noh=&v2l=&v2h="
-                f"&ov=&rc=10&d=t&download=1"
-            )
             r = httpx.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0 AI-Trader research"})
             if r.status_code != 200:
-                continue
-            from io import StringIO
-            df = pd.read_csv(StringIO(r.text))
+                return []
+            try:
+                df = pd.read_csv(_SIO(r.text), on_bad_lines="skip")
+            except Exception:
+                df = pd.read_csv(_SIO(r.text), error_bad_lines=False)
             if df.empty:
-                continue
+                return []
             df.columns = [c.strip().strip('"') for c in df.columns]
-            # Find date and trade type columns
             date_col = next((c for c in df.columns if "date" in c.lower() and "filing" not in c.lower()), None)
             type_col = next((c for c in df.columns if "trade" in c.lower() or "type" in c.lower()), None)
             val_col = next((c for c in df.columns if "value" in c.lower()), None)
             if not date_col:
-                continue
+                return []
             df["_date"] = pd.to_datetime(df[date_col], errors="coerce").dt.date
             df = df.dropna(subset=["_date"])
             mask = (df["_date"] >= start) & (df["_date"] <= end)
             df = df[mask]
+            out: list[dict] = []
             for dt, group in df.groupby("_date"):
                 buys = sells = 0
                 net_val = 0.0
@@ -3149,13 +3356,24 @@ def load_open_insider(tickers: list[str], start: datetime.date, end: datetime.da
                             net_val += sign * float(v)
                         except Exception:
                             pass
-                records.append({
+                out.append({
                     "ticker": ticker, "date": dt,
                     "oi_buy_count": buys, "oi_sell_count": sells, "oi_net_value": net_val,
                 })
+            return out
         except Exception as exc:
             log.warning("  OpenInsider %s failed: %s", ticker, exc)
-        time.sleep(1.0)
+            return []
+
+    records: list[dict] = []
+    _oi_workers = min(workers, max(1, len(tickers)))
+    with _TPE(max_workers=_oi_workers, thread_name_prefix="openinsider") as _ex:
+        _futures = {_ex.submit(_fetch_oi_ticker, t): t for t in tickers}
+        for _fut in _ac(_futures):
+            _rows = _fut.result()
+            if _rows:
+                records.extend(_rows)
+                log.info("  OpenInsider %s: %d rows", _futures[_fut].upper(), len(_rows))
 
     if not records:
         return pd.DataFrame()
@@ -3200,7 +3418,6 @@ def load_gdelt_news_tone(tickers: list[str], start: datetime.date, end: datetime
             # GDELT returns various tone metrics
             tone = float(data.get("avgtone", 0) or 0)
             articles = int(data.get("numarticles", 0) or 0)
-            mid = (start + (end - start) / 2) if isinstance((end - start), datetime.timedelta) else start
             mid_date = start + (end - start) // 2
             records.append({
                 "ticker": ticker,
@@ -3243,6 +3460,110 @@ def fetch_news_corpus_notes() -> list[str]:
     return notes
 # ---------------------------------------------------------------------------
 
+
+def _collect_dates_by_ticker(
+    tickers: list[str],
+    *,
+    min_date: datetime.date,
+    max_date: datetime.date,
+    source_frames: list[tuple[pd.DataFrame, str]],
+) -> dict[str, set[datetime.date]]:
+    dates_by_ticker: dict[str, set[datetime.date]] = {ticker: set() for ticker in tickers}
+    for df, col in source_frames:
+        if df.empty or col not in df.columns or "date" not in df.columns:
+            continue
+        frame = df[[col, "date"]].dropna().copy()
+        frame[col] = frame[col].astype(str).str.upper()
+        for ticker, group in frame.groupby(col):
+            if ticker not in dates_by_ticker:
+                continue
+            dates_by_ticker[ticker].update(
+                d for d in group["date"].tolist() if min_date <= d <= max_date
+            )
+    return dates_by_ticker
+
+
+def _fetch_prices_with_cache(
+    *,
+    ticker: str,
+    start: datetime.date,
+    end: datetime.date,
+    polygon_key: str,
+    cache: PriceCache,
+    profiler: IngestionProfiler,
+) -> pd.DataFrame:
+    cached = cache.get(ticker, start, end)
+    if cached is not None:
+        profiler.record(
+            "price_cache.hit",
+            seconds=0.0,
+            rows=int(cached.shape[0]),
+            metadata={"ticker": ticker},
+        )
+        return cached
+
+    started = time.perf_counter()
+    frame = fetch_polygon_prices(ticker, start, end, polygon_key)
+    profiler.record(
+        "price_cache.miss",
+        seconds=time.perf_counter() - started,
+        rows=int(frame.shape[0]),
+        metadata={"ticker": ticker},
+    )
+    if not frame.empty:
+        cache.put(ticker, start, end, frame)
+    return frame
+
+
+def _prefetch_prices(
+    *,
+    tickers: list[str],
+    dates_by_ticker: dict[str, set[datetime.date]],
+    seen: set[tuple[str, str]],
+    min_date: datetime.date,
+    max_date: datetime.date,
+    polygon_key: str,
+    cache: PriceCache,
+    price_workers: int,
+    profiler: IngestionProfiler,
+) -> dict[str, pd.DataFrame]:
+    price_end = min(max_date + datetime.timedelta(days=HOLDING_DAYS * 2), datetime.date.today())
+    price_tickers = [
+        ticker
+        for ticker in tickers
+        if dates_by_ticker.get(ticker)
+        and any((ticker, day.isoformat()) not in seen for day in dates_by_ticker[ticker])
+    ]
+    tasks = {
+        ticker: (
+            lambda ticker=ticker: _fetch_prices_with_cache(
+                ticker=ticker,
+                start=min_date,
+                end=price_end,
+                polygon_key=polygon_key,
+                cache=cache,
+                profiler=profiler,
+            )
+        )
+        for ticker in price_tickers
+    }
+    log.info(
+        "Prefetching Polygon prices for %d tickers with %d workers",
+        len(tasks),
+        max(1, price_workers),
+    )
+    return run_named_tasks(tasks, max_workers=price_workers, profiler=None, log=None)
+
+
+def _safe_cell(value, default=0):
+    try:
+        if pd.isna(value):
+            return default
+    except (TypeError, ValueError):
+        pass
+    return value
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest all training data to JSONL")
     parser.add_argument("--out", default="logs/training_examples.jsonl", help="Output JSONL path")
@@ -3251,9 +3572,38 @@ def main() -> None:
     parser.add_argument("--max-date", default=datetime.date.today().isoformat(), help="Latest date to include")
     parser.add_argument("--news-corpus-out", default="examples/trader_corpus/live_news.txt", help="Write news headlines to RAG corpus file")
     parser.add_argument("--no-ibkr", action="store_true", help="Skip IBKR execution data even if TWS/IB Gateway is running")
+    parser.add_argument("--force", action="store_true", help="Overwrite output file and re-ingest from scratch instead of resuming")
+    parser.add_argument("--source-workers", type=int, default=None, help="Concurrent independent source loaders")
+    parser.add_argument("--price-workers", type=int, default=None, help="Concurrent Polygon price fetches")
+    parser.add_argument("--ticker-workers", type=int, default=None, help="Concurrent per-ticker API calls within each source loader")
+    parser.add_argument("--cache-dir", default=None, help="Ingestion cache directory")
+    parser.add_argument("--no-cache", action="store_true", help="Disable local ingestion cache")
+    parser.add_argument("--profile-out", default=None, help="Write ingestion timing profile JSON")
     args = parser.parse_args()
 
+    from ai_trader.ingestion.hardware import detect as _detect_hw
+    _hw = _detect_hw()
+    _hw.log_summary()
+
     settings = get_settings()
+    source_workers = max(1, args.source_workers or settings.ingestion_source_workers)
+    price_workers = max(1, args.price_workers or settings.ingestion_price_workers)
+    ticker_workers = max(1, args.ticker_workers or settings.ingestion_ticker_workers)
+    cache_dir = Path(args.cache_dir) if args.cache_dir else settings.ingestion_cache_dir
+    profile_out = Path(args.profile_out) if args.profile_out else settings.ingestion_profile_path
+    profiler = IngestionProfiler(enabled=True)
+    price_cache = PriceCache(cache_dir, enabled=not args.no_cache)
+    log.info(
+        "Ingestion acceleration: source_workers=%d price_workers=%d ticker_workers=%d "
+        "http_connections=%d write_buffer=%d cache=%s profile=%s",
+        source_workers,
+        price_workers,
+        ticker_workers,
+        settings.ingestion_http_connections,
+        settings.ingestion_write_buffer,
+        "off" if args.no_cache else str(cache_dir),
+        profile_out,
+    )
     if settings.polygon_api_key is None:
         log.error("POLYGON_API_KEY required for price data. Aborting.")
         sys.exit(1)
@@ -3262,20 +3612,80 @@ def main() -> None:
     min_date = datetime.date.fromisoformat(args.min_date)
     max_date = datetime.date.fromisoformat(args.max_date)
 
-    log.info("Loading static datasets …")
-    fear_greed_df = load_fear_greed()
-    wsb_df = load_wsb()
-    congress_df = load_congress()
-    lobby_df = load_lobbying()
-    contract_df = load_contracts()
-    patent_df = load_patents()
+    # ── Incremental resume ────────────────────────────────────────────────
+    # Read already-ingested (ticker, as_of) pairs so we can skip them.
+    out_path = Path(args.out)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    seen: set[tuple[str, str]] = set()
+    file_mode = "w"
 
-    log.info("Loading IBKR execution history …")
-    ibkr_df = (
-        pd.DataFrame(columns=["ticker", "date", "ibkr_buy", "ibkr_sell", "ibkr_qty", "ibkr_price"])
-        if args.no_ibkr
-        else load_ibkr_executions(settings)
-    )
+    if not args.force and out_path.exists() and out_path.stat().st_size > 0:
+        log.info("Resuming — scanning %s for already-ingested examples …", out_path)
+        with out_path.open("r", encoding="utf-8") as _fh:
+            for _line in _fh:
+                _line = _line.strip()
+                if not _line:
+                    continue
+                try:
+                    _obj = json.loads(_line)
+                    _meta = _obj.get("metadata", {})
+                    _t = str(_meta.get("ticker", "")).upper()
+                    _d = str(_meta.get("as_of", ""))
+                    if _t and _d:
+                        seen.add((_t, _d))
+                except Exception:
+                    pass
+        if seen:
+            _dates_seen = [d for _, d in seen]
+            _max_seen = max(_dates_seen)
+            log.info(
+                "Found %d existing examples (latest date: %s). "
+                "Will skip already-ingested (ticker, date) pairs.",
+                len(seen), _max_seen,
+            )
+            # Advance min_date so per-ticker API loaders fetch less data.
+            # Keep a 45-day buffer to handle forward-return computation overlap.
+            _incremental_start = (
+                datetime.date.fromisoformat(_max_seen) - datetime.timedelta(days=45)
+            )
+            if _incremental_start > min_date:
+                log.info(
+                    "Advancing min_date %s → %s for API fetches",
+                    min_date, _incremental_start,
+                )
+                min_date = _incremental_start
+        file_mode = "a"
+
+    log.info("Loading static datasets with %d workers ...", source_workers)
+    static_tasks = {
+        "fear_greed": load_fear_greed,
+        "wsb": load_wsb,
+        "congress": load_congress,
+        "lobbying": load_lobbying,
+        "contracts": load_contracts,
+        "patents": load_patents,
+        "ibkr": (
+            lambda: pd.DataFrame(
+                columns=["ticker", "date", "ibkr_buy", "ibkr_sell", "ibkr_qty", "ibkr_price"]
+            )
+            if args.no_ibkr
+            else load_ibkr_executions(settings)
+        ),
+    }
+    with profiler.stage("static_sources_total", metadata={"workers": source_workers}):
+        static = run_named_tasks(
+            static_tasks,
+            max_workers=source_workers,
+            profiler=profiler,
+            log=log,
+        )
+    fear_greed_df = static["fear_greed"]
+    wsb_df = static["wsb"]
+    congress_df = static["congress"]
+    lobby_df = static["lobbying"]
+    contract_df = static["contracts"]
+    patent_df = static["patents"]
+    ibkr_df = static["ibkr"]
 
     # Determine tickers to process
     all_tickers: set[str] = set()
@@ -3289,78 +3699,90 @@ def main() -> None:
     else:
         tickers = sorted(all_tickers)
 
-    # Cap ticker list to avoid multi-hour per-ticker API loops (EDGAR, Earnings, etc.)
-    _TICKER_CAP = 300
-    if len(tickers) > _TICKER_CAP:
-        log.warning(
-            "Ticker list has %d tickers; capping to %d for per-ticker API calls",
-            len(tickers), _TICKER_CAP,
-        )
-        tickers = tickers[:_TICKER_CAP]
-
     log.info("%d tickers to process: %s …", len(tickers), ", ".join(tickers[:20]))
 
-    log.info("Loading expanded signal datasets …")
-    insider_df = load_insider_trades(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    macro_df = load_fred_macro(min_date, max_date)
-    earnings_df = load_earnings_surprises(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    options_df = load_options_put_call_ratios(tickers, max_date) if tickers else pd.DataFrame()
-    inst_df = load_13f_changes(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    short_interest_df = load_short_interest(tickers, min_date, max_date) if tickers else pd.DataFrame()
-
-    # --- New data source loaders ---
-    log.info("Fetching Yahoo Finance fundamentals …")
-    yf_fundamentals_df = load_yfinance_fundamentals(tickers)
-    log.info("Fetching Yahoo Finance options sentiment …")
-    yf_options_df = load_yfinance_options_sentiment(tickers, max_date)
-    log.info("Fetching Reddit multi-subreddit sentiment …")
-    reddit_df = load_reddit_multi_subreddit(tickers, settings)
-    log.info("Fetching Wikipedia pageviews …")
-    wiki_df = load_wikipedia_pageviews(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    log.info("Fetching USASpending.gov contracts …")
-    usa_spending_df = load_usaspending_contracts(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    log.info("Fetching CFTC Commitments of Traders …")
-    cftc_df = load_cftc_positioning()
-    log.info("Fetching CoinGecko crypto prices …")
-    crypto_df = load_coingecko_crypto(min_date, max_date)
-    log.info("Fetching SEC XBRL financial data …")
-    xbrl_df = load_sec_xbrl_financials(tickers, settings)
-    log.info("Fetching BLS macro data …")
+    log.info("Loading expanded signal datasets with %d workers ...", source_workers)
     bls_key = settings.bls_api_key.get_secret_value() if settings.bls_api_key else None
-    bls_df = load_bls_macro(min_date, max_date, api_key=bls_key)
-    log.info("Fetching EIA energy data …")
     eia_key = settings.eia_api_key.get_secret_value() if settings.eia_api_key else None
-    eia_df = load_eia_energy(min_date, max_date, api_key=eia_key)
-    log.info("Fetching Alpha Vantage technical indicators …")
     av_key = settings.alpha_vantage_api_key.get_secret_value() if settings.alpha_vantage_api_key else None
-    av_df = load_alpha_vantage_technicals(tickers, min_date, max_date, api_key=av_key) if tickers else pd.DataFrame()
-    log.info("Fetching Google News sentiment …")
-    gnews_df = load_google_news_sentiment(tickers) if tickers else pd.DataFrame()
-    log.info("Fetching Stocktwits trader sentiment …")
-    st_df = load_stocktwits_sentiment(tickers) if tickers else pd.DataFrame()
-    log.info("Fetching Google Trends search interest …")
-    gtrends_df = load_google_trends(tickers) if tickers else pd.DataFrame()
-    log.info("Fetching CBOE VIX history …")
-    vix_df = load_cboe_vix_history(min_date, max_date)
-    log.info("Fetching extended FRED series …")
     fred_key = settings.fred_api_key.get_secret_value() if settings.fred_api_key else None
-    fred_ext_df = load_fred_extended(min_date, max_date, api_key=fred_key)
-    log.info("Fetching SEC 8-K material events …")
-    sec_8k_df = load_sec_8k_events(tickers, min_date, max_date, settings) if tickers else pd.DataFrame()
-    log.info("Fetching USD strength …")
-    usd_df = load_usd_strength(min_date, max_date)
-    log.info("Fetching Hacker News tech sentiment …")
-    hn_df = load_hacker_news_tech_sentiment(tickers) if tickers else pd.DataFrame()
-    log.info("Fetching PatentsView USPTO data …")
-    pv_df = load_patentsview(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    log.info("Fetching World Bank macro data …")
-    wb_df = load_world_bank_macro(min_date, max_date)
-    log.info("Fetching OpenInsider cluster trades …")
-    oi_df = load_open_insider(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    log.info("Fetching GDELT news tone …")
-    gdelt_df = load_gdelt_news_tone(tickers, min_date, max_date) if tickers else pd.DataFrame()
-    log.info("Fetching live news from RSS feeds …")
-    news_notes = fetch_news_corpus_notes()
+    expanded_tasks = {
+        "insider": (
+            lambda: load_insider_trades(tickers, min_date, max_date, workers=ticker_workers)
+            if tickers
+            else pd.DataFrame()
+        ),
+        "macro": lambda: load_fred_macro(min_date, max_date),
+        "earnings": lambda: load_earnings_surprises(tickers, min_date, max_date) if tickers else pd.DataFrame(),
+        "options": lambda: load_options_put_call_ratios(tickers, max_date) if tickers else pd.DataFrame(),
+        "institutional": lambda: load_13f_changes(tickers, min_date, max_date) if tickers else pd.DataFrame(),
+        "short_interest": lambda: load_short_interest(tickers, min_date, max_date) if tickers else pd.DataFrame(),
+        "yf_fundamentals": lambda: load_yfinance_fundamentals(tickers),
+        "yf_options": lambda: load_yfinance_options_sentiment(tickers, max_date),
+        "reddit": lambda: load_reddit_multi_subreddit(tickers, settings),
+        "wiki": lambda: load_wikipedia_pageviews(tickers, min_date, max_date) if tickers else pd.DataFrame(),
+        "usa_spending": lambda: load_usaspending_contracts(tickers, min_date, max_date) if tickers else pd.DataFrame(),
+        "cftc": load_cftc_positioning,
+        "crypto": lambda: load_coingecko_crypto(min_date, max_date),
+        "xbrl": lambda: load_sec_xbrl_financials(tickers, settings),
+        "bls": lambda: load_bls_macro(min_date, max_date, api_key=bls_key),
+        "eia": lambda: load_eia_energy(min_date, max_date, api_key=eia_key),
+        "alpha_vantage": lambda: load_alpha_vantage_technicals(tickers, min_date, max_date, api_key=av_key) if tickers else pd.DataFrame(),
+        "gnews": lambda: load_google_news_sentiment(tickers) if tickers else pd.DataFrame(),
+        "stocktwits": lambda: load_stocktwits_sentiment(tickers) if tickers else pd.DataFrame(),
+        "gtrends": lambda: load_google_trends(tickers) if tickers else pd.DataFrame(),
+        "vix": lambda: load_cboe_vix_history(min_date, max_date),
+        "fred_ext": lambda: load_fred_extended(min_date, max_date, api_key=fred_key),
+        "sec_8k": lambda: load_sec_8k_events(tickers, min_date, max_date, settings) if tickers else pd.DataFrame(),
+        "usd": lambda: load_usd_strength(min_date, max_date),
+        "hacker_news": lambda: load_hacker_news_tech_sentiment(tickers) if tickers else pd.DataFrame(),
+        "patentsview": lambda: load_patentsview(tickers, min_date, max_date) if tickers else pd.DataFrame(),
+        "world_bank": lambda: load_world_bank_macro(min_date, max_date),
+        "openinsider": (
+            lambda: load_open_insider(tickers, min_date, max_date, workers=ticker_workers)
+            if tickers
+            else pd.DataFrame()
+        ),
+        "gdelt": lambda: load_gdelt_news_tone(tickers, min_date, max_date) if tickers else pd.DataFrame(),
+        "news_notes": fetch_news_corpus_notes,
+    }
+    with profiler.stage("expanded_sources_total", metadata={"workers": source_workers, "tickers": len(tickers)}):
+        expanded = run_named_tasks(
+            expanded_tasks,
+            max_workers=source_workers,
+            profiler=profiler,
+            log=log,
+        )
+    insider_df = expanded["insider"]
+    macro_df = expanded["macro"]
+    earnings_df = expanded["earnings"]
+    options_df = expanded["options"]
+    inst_df = expanded["institutional"]
+    short_interest_df = expanded["short_interest"]
+    yf_fundamentals_df = expanded["yf_fundamentals"]
+    yf_options_df = expanded["yf_options"]
+    reddit_df = expanded["reddit"]
+    wiki_df = expanded["wiki"]
+    usa_spending_df = expanded["usa_spending"]
+    cftc_df = expanded["cftc"]
+    crypto_df = expanded["crypto"]
+    xbrl_df = expanded["xbrl"]
+    bls_df = expanded["bls"]
+    eia_df = expanded["eia"]
+    av_df = expanded["alpha_vantage"]
+    gnews_df = expanded["gnews"]
+    st_df = expanded["stocktwits"]
+    gtrends_df = expanded["gtrends"]
+    vix_df = expanded["vix"]
+    fred_ext_df = expanded["fred_ext"]
+    sec_8k_df = expanded["sec_8k"]
+    usd_df = expanded["usd"]
+    hn_df = expanded["hacker_news"]
+    pv_df = expanded["patentsview"]
+    wb_df = expanded["world_bank"]
+    oi_df = expanded["openinsider"]
+    gdelt_df = expanded["gdelt"]
+    news_notes = expanded["news_notes"]
     if news_notes:
         news_path = Path(args.news_corpus_out)
         news_path.parent.mkdir(parents=True, exist_ok=True)
@@ -3371,47 +3793,77 @@ def main() -> None:
         )
         log.info("Wrote %d news items to %s", len(news_notes), news_path)
 
-    out_path = Path(args.out)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    event_source_frames = [
+        (congress_df, "ticker"),
+        (lobby_df, "ticker"),
+        (contract_df, "ticker"),
+        (patent_df, "ticker"),
+        (wsb_df, "ticker"),
+        (ibkr_df, "ticker"),
+        (insider_df, "ticker"),
+        (earnings_df, "ticker"),
+        (options_df, "ticker"),
+        (inst_df, "ticker"),
+        (short_interest_df, "ticker"),
+    ]
+    with profiler.stage("event_date_index_total", metadata={"tickers": len(tickers)}):
+        dates_by_ticker = _collect_dates_by_ticker(
+            tickers,
+            min_date=min_date,
+            max_date=max_date,
+            source_frames=event_source_frames,
+        )
 
+    with profiler.stage(
+        "price_prefetch_total",
+        metadata={"workers": price_workers, "cache_enabled": not args.no_cache},
+    ):
+        price_frames = _prefetch_prices(
+            tickers=tickers,
+            dates_by_ticker=dates_by_ticker,
+            seen=seen,
+            min_date=min_date,
+            max_date=max_date,
+            polygon_key=polygon_key,
+            cache=price_cache,
+            price_workers=price_workers,
+            profiler=profiler,
+        )
+
+    example_started = time.perf_counter()
     total_written = 0
-    with out_path.open("w", encoding="utf-8") as fh:
+    skipped = 0
+    with out_path.open(file_mode, encoding="utf-8") as fh:
         for ticker in tickers:
             log.info("Processing %s …", ticker)
 
-            # Get all dates from the various signal sources for this ticker
-            dates: set[datetime.date] = set()
-            for df, col in [(congress_df, "ticker"), (lobby_df, "ticker"),
-                            (contract_df, "ticker"), (patent_df, "ticker"),
-                            (wsb_df, "ticker"), (ibkr_df, "ticker"),
-                            (insider_df, "ticker"), (earnings_df, "ticker"),
-                            (options_df, "ticker"), (inst_df, "ticker"),
-                            (short_interest_df, "ticker")]:
-                if col in df.columns and "date" in df.columns:
-                    sub = df[df[col] == ticker]
-                    dates.update(sub["date"].dropna().tolist())
-
-            dates = {d for d in dates if min_date <= d <= max_date}
+            dates = dates_by_ticker.get(ticker, set())
             if not dates:
                 log.info("  No events for %s, skipping", ticker)
                 continue
 
-            # Fetch Polygon prices with forward HOLDING_DAYS buffer
-            price_end = min(max_date + datetime.timedelta(days=HOLDING_DAYS * 2), datetime.date.today())
-            prices = fetch_polygon_prices(ticker, min_date, price_end, polygon_key)
+            prices = price_frames.get(ticker, pd.DataFrame())
             if prices.empty:
                 log.info("  No price data for %s, skipping", ticker)
                 continue
 
             for as_of in sorted(dates):
+                # ── Incremental skip ──────────────────────────────────────
+                _key = (ticker, as_of.isoformat())
+                if _key in seen:
+                    skipped += 1
+                    continue
+
                 # Gather signals for this date
                 fg = float(fear_greed_df.loc[as_of, "fear_greed"]) if as_of in fear_greed_df.index else 50.0
 
                 def _get(df, ticker_col, ticker_val, date_col, date_val, val_cols):
+                    if df.empty or ticker_col not in df.columns or date_col not in df.columns:
+                        return {c: 0 for c in val_cols}
                     sub = df[(df[ticker_col] == ticker_val) & (df[date_col] == date_val)]
                     if sub.empty:
                         return {c: 0 for c in val_cols}
-                    return {c: sub.iloc[0][c] for c in val_cols}
+                    return {c: _safe_cell(sub.iloc[0][c]) for c in val_cols}
 
                 cong = _get(congress_df, "ticker", ticker, "date", as_of, ["congress_buy", "congress_sell", "congress_amount"])
                 lob = _get(lobby_df, "ticker", ticker, "date", as_of, ["lobby_amount"])
@@ -3457,7 +3909,7 @@ def main() -> None:
                     sub = df[df["ticker"] == ticker_val]
                     if sub.empty:
                         return {c: 0 for c in cols}
-                    return {c: sub.iloc[0].get(c, 0) for c in cols}
+                    return {c: _safe_cell(sub.iloc[0].get(c, 0)) for c in cols}
 
                 yf_fund = _get_ticker_only(yf_fundamentals_df, ticker, [
                     "pe_ratio", "forward_pe", "revenue_growth", "earnings_growth", "beta",
@@ -3485,7 +3937,7 @@ def main() -> None:
                     available = df.index[df.index <= dt]
                     if available.empty:
                         return 0.0
-                    return float(df.loc[available[-1], col])
+                    return float(_safe_cell(df.loc[available[-1], col], 0.0))
 
                 cftc_val = _macro_indexed(cftc_df, "cftc_sp500_net_noncomm", as_of)
                 btc_price_val = _macro_indexed(crypto_df, "btc_price", as_of)
@@ -3527,6 +3979,12 @@ def main() -> None:
                     congress_buy=int(cong["congress_buy"]),
                     congress_sell=int(cong["congress_sell"]),
                     congress_amount=float(cong["congress_amount"]),
+                    house_buy=int(cong.get("house_buy") or 0),
+                    house_sell=int(cong.get("house_sell") or 0),
+                    house_amount=float(cong.get("house_amount") or 0.0),
+                    senate_buy=int(cong.get("senate_buy") or 0),
+                    senate_sell=int(cong.get("senate_sell") or 0),
+                    senate_amount=float(cong.get("senate_amount") or 0.0),
                     lobby_amount=float(lob["lobby_amount"]),
                     contract_amount=float(con["contract_amount"]),
                     patent_count=int(pat["patent_count"]),
@@ -3543,6 +4001,7 @@ def main() -> None:
                     insider_value_usd=float(insider["insider_value_usd"]),
                     insider_officer_count=int(insider["insider_officer_count"]),
                     insider_director_count=int(insider["insider_director_count"]),
+                    insider_unique_filers=int(insider.get("insider_unique_filers") or 0),
                     yield_spread_2_10=macro.get("yield_spread_2_10"),
                     cpi_mom=macro.get("cpi_mom"),
                     ism_pmi=macro.get("ism_pmi"),
@@ -3560,6 +4019,7 @@ def main() -> None:
                     institutional_delta_pct=float(inst["institutional_delta_pct"]),
                     institutional_manager=str(inst["institutional_manager"]),
                     institutional_market_value_usd=float(inst["institutional_market_value_usd"]),
+                    institutional_is_new_position=bool(inst.get("institutional_is_new_position", False)),
                     short_interest_shares=float(short_interest["short_interest_shares"]),
                     days_to_cover=float(short_interest["days_to_cover"]),
                     short_interest_change_pct=float(short_interest["short_interest_change_pct"]),
@@ -3699,10 +4159,43 @@ def main() -> None:
                         "gdelt_avg_tone": float(gdelt.get("gdelt_avg_tone") or 0.0),
                     },
                 )
+
+                # Auto-label the example; queue low-confidence ones for human review.
+                label_result = auto_label(example)
+                example = apply_label(example, label_result, source="auto")
+                if label_result.needs_review:
+                    enqueue(example, label_result, queue_path=DEFAULT_QUEUE_PATH)
+                    log.debug(
+                        "Queued %s/%s for review: %s",
+                        ticker,
+                        as_of,
+                        "; ".join(label_result.review_reasons),
+                    )
+
                 fh.write(example.model_dump_json() + "\n")
                 total_written += 1
 
-    log.info("Done. Wrote %d training examples to %s", total_written, out_path)
+    profiler.record(
+        "example_build_total",
+        seconds=time.perf_counter() - example_started,
+        rows=total_written,
+        metadata={"skipped": skipped},
+    )
+    log.info(
+        "Done. Wrote %d new training examples to %s (skipped %d already-ingested).",
+        total_written, out_path, skipped,
+    )
+
+    from ai_trader.training.review_queue import pending_count
+    n_pending = pending_count(DEFAULT_QUEUE_PATH)
+    if n_pending:
+        log.info(
+            "Review queue: %d example(s) need human labeling → run: "
+            "python scripts/review_labels.py",
+            n_pending,
+        )
+    profiler.write(profile_out)
+    log.info("Wrote ingestion profile to %s", profile_out)
 
 
 if __name__ == "__main__":
