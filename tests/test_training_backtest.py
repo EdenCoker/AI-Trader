@@ -4,7 +4,8 @@ import pytest
 
 from ai_trader.domain.signals import Signal, SignalBundle, SignalDirection
 from ai_trader.intelligence.trade_plan import TradePlan
-from ai_trader.training.backtest import StrategyBacktestConfig, run_strategy_backtest
+from ai_trader.training.backtest import StrategyBacktestConfig, StrategyRule, run_strategy_backtest
+from ai_trader.training.conviction import ConvictionMetric
 from ai_trader.training.data import LocalTrainingExample
 
 
@@ -172,3 +173,132 @@ def test_strategy_backtest_can_filter_by_date_range():
     assert report.selected_strategy is not None
     assert report.examples_used == 2
     assert report.selected_strategy.metrics.mean_return == pytest.approx(0.05)
+
+
+def test_strategy_backtest_can_use_agreement_adjusted_conviction():
+    examples = (
+        _example(
+            ticker="AAA",
+            as_of=date(2024, 1, 5),
+            signal_name="lobbying_activity",
+            direction=SignalDirection.LONG,
+            conviction=0.9,
+            pnl=0.06,
+        ),
+    )
+    rules = (
+        StrategyRule(
+            name="raw_high_conviction",
+            direction=SignalDirection.LONG,
+            min_conviction=0.8,
+            conviction_metric=ConvictionMetric.PLAN,
+        ),
+        StrategyRule(
+            name="agreement_adjusted_high_conviction",
+            direction=SignalDirection.LONG,
+            min_conviction=0.8,
+            conviction_metric=ConvictionMetric.AGREEMENT_ADJUSTED,
+        ),
+    )
+
+    report = run_strategy_backtest(
+        examples,
+        StrategyBacktestConfig(min_trades=1, min_active_months=1, min_trades_per_month=1),
+        rules=rules,
+    )
+
+    assert [evaluation.rule.name for evaluation in report.leaderboard] == ["raw_high_conviction"]
+
+
+def test_strategy_backtest_default_rules_can_use_configured_conviction_metric():
+    examples = (
+        _example(
+            ticker="AAA",
+            as_of=date(2024, 1, 5),
+            signal_name="lobbying_activity",
+            direction=SignalDirection.LONG,
+            conviction=0.9,
+            pnl=0.06,
+        ),
+    )
+
+    report = run_strategy_backtest(
+        examples,
+        StrategyBacktestConfig(
+            conviction_metric=ConvictionMetric.AGREEMENT_ADJUSTED,
+            min_trades=1,
+            min_active_months=1,
+            min_trades_per_month=1,
+        ),
+    )
+
+    assert report.selected_strategy is not None
+    assert report.selected_strategy.rule.conviction_metric is ConvictionMetric.AGREEMENT_ADJUSTED
+
+
+def test_strategy_backtest_robustness_checks_reject_concentrated_rules():
+    examples = (
+        _example(
+            ticker="AAA",
+            as_of=date(2024, 1, 5),
+            signal_name="lobbying_activity",
+            direction=SignalDirection.LONG,
+            conviction=0.3,
+            pnl=0.06,
+        ),
+        _example(
+            ticker="AAA",
+            as_of=date(2024, 2, 5),
+            signal_name="lobbying_activity",
+            direction=SignalDirection.LONG,
+            conviction=0.3,
+            pnl=0.04,
+        ),
+    )
+
+    report = run_strategy_backtest(
+        examples,
+        StrategyBacktestConfig(
+            min_trades=2,
+            min_active_months=2,
+            min_trades_per_month=1,
+            max_ticker_concentration=0.75,
+        ),
+    )
+
+    assert report.selected_strategy is None
+    assert report.leaderboard == ()
+
+
+def test_strategy_backtest_robustness_checks_reject_drawdown():
+    examples = (
+        _example(
+            ticker="AAA",
+            as_of=date(2024, 1, 5),
+            signal_name="lobbying_activity",
+            direction=SignalDirection.LONG,
+            conviction=0.3,
+            pnl=-0.50,
+        ),
+        _example(
+            ticker="BBB",
+            as_of=date(2024, 2, 5),
+            signal_name="lobbying_activity",
+            direction=SignalDirection.LONG,
+            conviction=0.3,
+            pnl=0.01,
+        ),
+    )
+
+    report = run_strategy_backtest(
+        examples,
+        StrategyBacktestConfig(
+            min_trades=2,
+            min_active_months=2,
+            min_trades_per_month=1,
+            max_drawdown=0.25,
+        ),
+    )
+
+    assert report.selected_strategy is None
+    assert report.leaderboard == ()

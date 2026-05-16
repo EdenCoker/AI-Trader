@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+
 try:
     from rich import print as rprint
 except ImportError:  # pragma: no cover - fallback for minimal environments.
@@ -18,29 +19,33 @@ except ImportError:  # pragma: no cover - fallback for minimal environments.
 from ai_trader.backtesting.engine import WalkForwardConfig, WalkForwardEngine, WalkForwardResult
 from ai_trader.backtesting.monte_carlo import StressMonteCarlo
 from ai_trader.bridge.bridge_server import BridgeServer
-from ai_trader.build_loop.loop import BuildLoop
 from ai_trader.broker.contracts import BrokerAccountSnapshot, BrokerOrder, BrokerQuote, OrderSide
 from ai_trader.broker.ibkr import IBKRBroker
-from ai_trader.broker.sizing import BalanceSizingConfig, BalanceSizingResult, size_order_from_balance
+from ai_trader.broker.sizing import (
+    BalanceSizingConfig,
+    BalanceSizingResult,
+    size_order_from_balance,
+)
+from ai_trader.build_loop.loop import BuildLoop
 from ai_trader.config import get_settings
 from ai_trader.domain.signals import SignalBundle, SignalDirection
 from ai_trader.evolution.promoter import ModelPromoter
 from ai_trader.gui import run_gui
-from ai_trader.intelligence.trade_plan import TradePlan
 from ai_trader.intelligence.models import NarrativeIntelligence
 from ai_trader.intelligence.narrative import NarrativeAnalyzer
 from ai_trader.intelligence.reasoner import FinalReasoner
+from ai_trader.intelligence.trade_plan import TradePlan
 from ai_trader.providers.fear_greed import LiveFearGreedProvider
 from ai_trader.rag.trader_rag import format_retrieved, get_trader_rag
 from ai_trader.self_improvement.scheduler import NightlyReviewScheduler
 from ai_trader.training import (
+    ConvictionMetric,
     LocalCalibratorTrainer,
     StrategyBacktestConfig,
     filter_examples_by_horizon,
     load_training_examples,
     run_strategy_backtest,
 )
-
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 backtest_app = typer.Typer(no_args_is_help=True)
@@ -75,7 +80,10 @@ def _configure_logging() -> None:
     settings = get_settings()
     Path("logs").mkdir(exist_ok=True)
     redaction_filter = _SecretRedactionFilter()
-    handlers: list[logging.Handler] = [logging.StreamHandler(), logging.FileHandler("logs/ai_trader.log")]
+    handlers: list[logging.Handler] = [
+        logging.StreamHandler(),
+        logging.FileHandler("logs/ai_trader.log"),
+    ]
     for handler in handlers:
         handler.addFilter(redaction_filter)
     logging.basicConfig(
@@ -149,7 +157,9 @@ def analyze_news(
     as_of: str | None = typer.Option(None, help="As-of date (YYYY-MM-DD). Defaults to today."),
     market_context: str | None = typer.Option(None, help="Optional market context text"),
     analyst_context: str | None = typer.Option(None, help="Optional analyst expectations text"),
-    output: Path | None = typer.Option(None, "--output", "-o", help="Write JSON to file (UTF-8, no BOM) instead of stdout"),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Write JSON to file (UTF-8, no BOM) instead of stdout"
+    ),
 ) -> None:
     """Run the 3-stage narrative analyzer and print JSON."""
 
@@ -176,6 +186,7 @@ def analyze_news(
         output.write_text(json_str, encoding="utf-8")
     else:
         print(json_str)
+
 
 @app.command("ibkr-positions")
 def ibkr_positions() -> None:
@@ -225,17 +236,23 @@ def rag_query(
 
 @app.command("reason")
 def reason(
-    bundle_file: Path = typer.Option(..., exists=True, readable=True, help="SignalBundle JSON file"),
+    bundle_file: Path = typer.Option(
+        ..., exists=True, readable=True, help="SignalBundle JSON file"
+    ),
     narrative_file: Path | None = typer.Option(
         None, exists=True, readable=True, help="Optional NarrativeIntelligence JSON file"
     ),
     ticker: str | None = typer.Option(None, help="Override ticker (defaults to bundle ticker)"),
     as_of: str | None = typer.Option(None, help="Override as-of date (YYYY-MM-DD)"),
-    position_context: str | None = typer.Option(None, help="Optional current position context text"),
+    position_context: str | None = typer.Option(
+        None, help="Optional current position context text"
+    ),
     rag: bool | None = typer.Option(
         None, help="Override RAG on/off (defaults to AI_TRADER_RAG_ENABLED)"
     ),
-    output: Path | None = typer.Option(None, "--output", "-o", help="Write JSON to file (UTF-8, no BOM) instead of stdout"),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Write JSON to file (UTF-8, no BOM) instead of stdout"
+    ),
 ) -> None:
     """Run the Final Reasoner and print a TradePlan JSON."""
 
@@ -269,7 +286,9 @@ def reason(
 
 @app.command("trade")
 def trade(
-    plan_file: Path = typer.Option(..., exists=True, readable=True, help="TradePlan JSON (output from `reason --output`)"),
+    plan_file: Path = typer.Option(
+        ..., exists=True, readable=True, help="TradePlan JSON (output from `reason --output`)"
+    ),
     shares: float | None = typer.Option(
         None,
         min=0.01,
@@ -296,7 +315,9 @@ def trade(
         "--fractional-shares",
         help="Allow fractional calculated share quantities.",
     ),
-    dry_run: bool = typer.Option(False, "--dry-run", help="Print order details without submitting to IBKR"),
+    dry_run: bool = typer.Option(
+        False, "--dry-run", help="Print order details without submitting to IBKR"
+    ),
 ) -> None:
     """Submit a market order to IBKR paper/live account based on a TradePlan."""
 
@@ -310,8 +331,8 @@ def trade(
 
     side = OrderSide.BUY if plan.direction is SignalDirection.LONG else OrderSide.SELL
 
-    can_size_without_broker = (
-        shares is not None or (starting_balance is not None and reference_price is not None)
+    can_size_without_broker = shares is not None or (
+        starting_balance is not None and reference_price is not None
     )
     if dry_run and can_size_without_broker:
         order, sizing = _build_order_or_skip(
@@ -406,7 +427,9 @@ def _sizing_account(
         return snapshot
 
     broker_balance = snapshot.spendable_balance
-    sizing_balance = min(broker_balance, starting_balance) if broker_balance > 0 else starting_balance
+    sizing_balance = (
+        min(broker_balance, starting_balance) if broker_balance > 0 else starting_balance
+    )
     return BrokerAccountSnapshot(
         account=snapshot.account,
         currency=snapshot.currency,
@@ -438,7 +461,9 @@ def _print_order_preview(
 
 @app.command("review-nightly")
 def review_nightly(
-    outcomes_file: Path = typer.Option(..., exists=True, readable=True, help="TradeOutcome JSONL file"),
+    outcomes_file: Path = typer.Option(
+        ..., exists=True, readable=True, help="TradeOutcome JSONL file"
+    ),
 ) -> None:
     """Run post-trade reviews and submit approved proposals."""
 
@@ -562,12 +587,48 @@ def train_backtest(
         None,
         help="Optional out-of-sample split date YYYY-MM-DD",
     ),
+    conviction_metric: str = typer.Option(
+        ConvictionMetric.PLAN.value,
+        help="Conviction score to use: plan, bundle, or agreement_adjusted",
+    ),
     min_trades: int = typer.Option(50, min=1, help="Minimum trades for a strategy"),
     min_active_months: int = typer.Option(3, min=1, help="Minimum active months"),
+    min_active_years: int = typer.Option(
+        1,
+        min=1,
+        help="Minimum active calendar years for a strategy",
+    ),
     min_trades_per_month: int = typer.Option(
         5,
         min=1,
         help="Minimum trades in a month for that month to count in equity",
+    ),
+    max_ticker_concentration: float | None = typer.Option(
+        None,
+        min=0.0,
+        max=1.0,
+        help="Reject strategies above this single-ticker trade share",
+    ),
+    max_month_concentration: float | None = typer.Option(
+        None,
+        min=0.0,
+        max=1.0,
+        help="Reject strategies above this single-month trade share",
+    ),
+    max_drawdown: float | None = typer.Option(
+        None,
+        min=0.0,
+        max=1.0,
+        help="Reject strategies above this max drawdown fraction",
+    ),
+    require_positive_oos_score: bool = typer.Option(
+        False,
+        help="Reject split-date candidates with non-positive OOS score",
+    ),
+    max_train_test_sharpe_decay: float | None = typer.Option(
+        None,
+        min=0.0,
+        help="Reject split-date candidates with train-test Sharpe decay above this",
     ),
     top_n: int = typer.Option(10, min=1, help="Number of strategies to report"),
     output: Path | None = typer.Option(
@@ -580,13 +641,27 @@ def train_backtest(
     """Backtest local training examples across deterministic policy rules."""
 
     _configure_logging()
+    try:
+        conviction_metric_value = ConvictionMetric(conviction_metric)
+    except ValueError as exc:
+        raise typer.BadParameter(
+            "conviction_metric must be plan, bundle, or agreement_adjusted"
+        ) from exc
+
     config = StrategyBacktestConfig(
         start_date=date.fromisoformat(start_date) if start_date is not None else None,
         end_date=date.fromisoformat(end_date) if end_date is not None else None,
         split_date=date.fromisoformat(split_date) if split_date is not None else None,
+        conviction_metric=conviction_metric_value,
         min_trades=min_trades,
         min_active_months=min_active_months,
+        min_active_years=min_active_years,
         min_trades_per_month=min_trades_per_month,
+        max_ticker_concentration=max_ticker_concentration,
+        max_month_concentration=max_month_concentration,
+        max_drawdown=max_drawdown,
+        require_positive_oos_score=require_positive_oos_score,
+        max_train_test_sharpe_decay=max_train_test_sharpe_decay,
         top_n=top_n,
     )
     report = run_strategy_backtest(load_training_examples(examples_file), config)
@@ -675,17 +750,16 @@ def backtest_run(
 
 @backtest_app.command("monte-carlo")
 def backtest_monte_carlo(
-    result_file: Path = typer.Option(..., exists=True, readable=True, help="WalkForwardResult JSON"),
+    result_file: Path = typer.Option(
+        ..., exists=True, readable=True, help="WalkForwardResult JSON"
+    ),
     n_sims: int = typer.Option(10_000, help="Number of simulations"),
 ) -> None:
     """Run stress Monte Carlo over backtest trade PnL."""
 
     _configure_logging()
     result = WalkForwardResult.model_validate_json(result_file.read_text(encoding="utf-8"))
-    pnl = [
-        trade.account_return if trade.notional > 0 else trade.pnl_pct
-        for trade in result.trades
-    ]
+    pnl = [trade.account_return if trade.notional > 0 else trade.pnl_pct for trade in result.trades]
     if not pnl:
         pnl = [window.sharpe / 100 for window in result.windows]
     mc = StressMonteCarlo(n_simulations=n_sims).run_stress(pnl_series=pnl)  # type: ignore[arg-type]
@@ -721,7 +795,9 @@ def build_loop_run(
 
 @app.command("autopilot")
 def autopilot(
-    bundle_file: Path = typer.Option(..., exists=True, readable=True, help="SignalBundle JSON file to reuse each cycle"),
+    bundle_file: Path = typer.Option(
+        ..., exists=True, readable=True, help="SignalBundle JSON file to reuse each cycle"
+    ),
     shares: float | None = typer.Option(
         None,
         min=0.01,
@@ -743,10 +819,16 @@ def autopilot(
         "--fractional-shares",
         help="Allow fractional calculated share quantities.",
     ),
-    min_conviction: float = typer.Option(0.5, min=0.0, max=1.0, help="Minimum conviction to place an order"),
+    min_conviction: float = typer.Option(
+        0.5, min=0.0, max=1.0, help="Minimum conviction to place an order"
+    ),
     interval_s: int = typer.Option(300, min=10, help="Seconds between cycles"),
-    narrative_file: Path | None = typer.Option(None, exists=True, readable=True, help="Optional NarrativeIntelligence JSON"),
-    max_cycles: int | None = typer.Option(None, help="Stop after N cycles (default: run forever, Ctrl-C to stop)"),
+    narrative_file: Path | None = typer.Option(
+        None, exists=True, readable=True, help="Optional NarrativeIntelligence JSON"
+    ),
+    max_cycles: int | None = typer.Option(
+        None, help="Stop after N cycles (default: run forever, Ctrl-C to stop)"
+    ),
 ) -> None:
     """Continuously reason and trade: load bundle → reason → place order → sleep."""
 
@@ -755,10 +837,12 @@ def autopilot(
     logger = logging.getLogger("autopilot")
 
     stop = False
+
     def _handle_sigint(sig, frame):
         nonlocal stop
         stop = True
         logger.info("Autopilot stopping after current cycle …")
+
     signal.signal(signal.SIGINT, _handle_sigint)
 
     bundle = SignalBundle.model_validate_json(bundle_file.read_text(encoding="utf-8"))

@@ -1,11 +1,12 @@
-Live news headlines fetched 2026-05-15:
+Live news headlines fetched 2026-05-16:
 
+- 'They took £20,000 I didn't owe': Parents hit by child maintenance errors. John Hammond is one of 30 parents who told BBC Your Voice they'd experienced problems with the CMS.
 - UK borrowing costs rise and pound falls as leadership drama continues. Analysts say the moves have been fuelled by concerns a Burnham-led government would increase government borrowing.
 - British Gas pays £20m over prepayment meter force-fitting scandal. The regulator say the energy supplier breached licence conditions aimed at protecting customers in vulnerable situations.
 - Heathrow rival could lead expansion, watchdog says. The aviation watchdog is considering new rules for Heathrow ahead of its possible expansion.
 - Beckhams become billionaires as Oasis make rich list for first time. The list is based off the paper's estimates of the minimum wealth of Britain’s 350 richest people or families.
-- X pledges quicker action on hate and terror content in the UK. Ofcom said the commitments were of particular importance after recent crimes targeting Jewish communities in the UK.
 - Inside the secretive and lucrative world of orchid breeding. It can take a decade to bring a new orchid to market, so breeders keep their hi-tech processes secret.
+- X pledges quicker action on hate and terror content in the UK. Ofcom said the commitments were of particular importance after recent crimes targeting Jewish communities in the UK.
 - Trump and Xi conclude 'very successful' talks but few deals confirmed. There were plenty of choreographed ceremonies but no trade breakthroughs after the two-day visit.
 - Claim, counter-claim and tech's seedy side exposed: Five things we learned in the Musk-Altman trial. As the jury deliberates, this is what we found out during the weeks-long trial with two tech titans at its heart.
 - US hotel owners expected a World Cup boom - so far it hasn't happened. An industry body survey found hotels in World Cup host cities see the tournament as a "non-event".
@@ -26,23 +27,27 @@ Live news headlines fetched 2026-05-15:
 - Shrinking Milka chocolate bar tricked consumers, says German court. A court in Bremen has found the manufacturer of the classic Alpine Milk chocolate bar guilty of "shrinkflation".
 - Ex-rugby star on the joys of his own burger stall. Ex-England and Leicester Tigers hooker Tom Youngs says the new venture brings families to the farm.
 - Elon Musk and Jensen Huang among CEOs joining Trump on China trip. More than a dozen US executives have joined the president on his visit, where he will meet his Chinese counterpart Xi Jinping.
-- Elon Musk said control of OpenAI should go to his children, Sam Altman tells jury. Sam Altman said Elon Musk tried many times for total control of OpenAI, which he's now suing.
 - Smart glasses are 'an invasion of privacy' - Meta's are selling better than ever. The biggest tech firms are set to sell millions of smart glasses despite growing privacy concerns.
 - Big tech bets on new mascots in bid to seem more cuddly. The likes of Apple, Microsoft and Google are all putting cartoon characters centre stage.
 - Not so dusty: How tech is changing woodworking. Woodworking shops have been transformed by tech to make tools safer and more precise.
+- Why Taiwan became the defining issue in the Trump-Xi talks. U.S. President Donald Trump had said arms sales to Taiwan would be on the agenda for his talks with Chinese President Xi Jinping which ended Friday.
 - Trump went big on tech stocks in first quarter of 2026, new filings show. Trump bought shares of Amazon, Meta, Oracle, Broadcom, Motorola and Dell worth millions, new ethics disclosure filings show.
+- Trump says China and Taiwan should 'both cool it'. President Donald Trump spoke about Taiwan after a two-day visit to China, where he said he discussed Iran, and trade deals with Chinese President Xi Jingping.
+- Russia's Putin to meet China's Xi in Beijing from May 19-20, Beijing and Moscow say. Putin's trip follows shortly after U.S. President Donald Trump's visit to Beijing.
+- Bill Ackman built Microsoft stake in first quarter during sell-off, betting on AI and cloud growth. Bill Ackman's Pershing Square Capital Management has built a position in Microsoft, the billionaire hedge fund manager said Friday in a post on X.
 - What you need to know about Nvidia competitor Cerebras after wild IPO. Nvidia competitor Cerebras made a stunning debut on Wall Street Thursday, signaling unstoppable demand for AI chips. Here's how its chips compete with Nvidia's.
+- FDA shuffles top drug, biologics leaders in latest shakeup. The U.S. Food and Drug Administration is shuffling its top drug and biologics regulators, days after the departure of former commissioner Marty Makary.
 - Berkshire Hathaway returns to airlines with $2.6 billion stake in Delta Air Lines. The Omaha-based company built a position worth more than $2.6 billion, making Delta Berkshire's 14th-largest holding at the end of March.
+- Maine might boot Sen. Susan Collins. It could hurt the state's wallet for years. Sen. Susan Collins is the lone New England Republican left in Congress and chairs the Senate Appropriations Committee.
+- Jim Cramer fears SpaceX's IPO could be 'destructive' for the rest of market. CNBC's Jim Cramer said he is growing concerned about the speculative nature in the IPO market.
 - Trump touted Palantir on Truth Social after buying the company's stock, records show. During the first three months of the year, Trump purchased between $630,000 and $247,008 worth of Palantir stock and sold at least $1.1 million.
 - Traders now see next Fed interest rate move as a hike following inflation surge. The fed funds futures market is pricing in an increase as soon as December.
 - Democrats blast Trump over 'slush fund' in possible IRS lawsuit settlement. ABC News reported President Donald Trump could settle a lawsuit against the IRS in exchange for a $1.7 billion fund to compensate his allies.
 - Stephen Miran exits the Fed. How he set the stage for Kevin Warsh.. The outgoing Fed governor shares big ideas with the incoming chair.
-- Maine might boot Sen. Susan Collins. It could hurt the state's wallet for years. Sen. Susan Collins is the lone New England Republican left in Congress and chairs the Senate Appropriations Committee.
-- Trump told Xi ‘I don't talk about’ whether U.S. would defend Taiwan from China. President Donald Trump spoke about Taiwan after a two-day visit to China, where he said he discussed Iran, and trade deals with Chinese President Xi Jingping.
+- Can the S&P 500 hold on for a 7th weekly gain? Plus, Friday's best and worst stocks. Every weekday, the Investing Club releases the Homestretch; an actionable afternoon update just in time for the last hour of trading.
 - How China and U.S. eased the Middle East oil shock and kept prices from spiking even higher. China and the U.S., the world's two largest economies, wield great influence over the oil market and are using it to help plug the supply gap.
 - Chinese EVs are coming to Canada, and some dealers can't wait to sell them. Canada is allowing 49,000 Chinese-made electric vehicles to be imported for retail sales annually at a tariff rate of 6.1%.
 - NFL wants certain trading contracts banned from prediction markets like 'first play of game,' injuries. The letter, which was reviewed by CNBC, calls for banning certain contracts and raising the age requirements for participation on sports-related contracts.
-- Can the S&P 500 hold on for a 7th weekly gain? Plus, Friday's best and worst stocks. Every weekday, the Investing Club releases the Homestretch; an actionable afternoon update just in time for the last hour of trading.
 - Inflation rate projected to hit 6% in the second quarter, top economic forecasters say. The recent surge in inflation is likely to get worse over the next several months, according to a survey Friday.
 - Starbucks to lay off 300 U.S. employees, shutter some regional support offices. Starbucks said the moves will help the coffee chain return to profitable growth.
 - Exxon's once-hefty dividend is now tiny. Here's how to fix that. 
@@ -52,14 +57,9 @@ Live news headlines fetched 2026-05-15:
 - 'Biggest bottleneck in the AI buildup' fuels DRAM ETF to record. The Roundhill Memory ETF (DRAM) just reached $10 billion in assets at the fastest pace ever for an exchange-traded fund according to TMX VettaFi.
 - China will buy more U.S. oil because it is a natural trade partner, says Energy Secretary Wright. China relies heavily on crude oil imports from the Middle East but those supplies are mostly  cut off due to Iran's blockade of the Strait of Hormuz.
 - Cerebras stock falls 10% in first full day of trading after blockbuster debut. Cerebras Systems' shares were lower in early trading Friday, after its blockbuster stock market debut on Thursday.
-- Bill Ackman built Microsoft stake in first quarter during sell-off, betting on AI and cloud growth. Bill Ackman's Pershing Square Capital Management has built a position in Microsoft, the billionaire hedge fund manager said Friday in a post on X.
 - UAE fast tracks second West-East oil pipeline to bypass Strait of Hormuz. The second pipeline project comes as global energy supplies remain under pressure and flows through the Strait of Hormuz remain severely limited
 - Magnum Ice Cream stock soars after report of potential private equity takeover. It comes just six months after Magnum spun off from Unilever to create the world's largest standalone ice cream maker.
 - Why Britain’s potential next PM is putting investors on edge. Traders fear a new left-leaning U.K. government led by Andy Burnham would challenge the country's fiscal discipline.
-- Nvidia's trillion-dollar run puts pressure on the bulls. Nvidia's market cap is now just shy of $5.7 trillion, up from $4.7 trillion as of market close last Tuesday.
-- 'Survivor’s penalty’ can follow the death of a spouse — but its impact may be smaller than expected. The ‘survivor’s penalty’ can hit retirees after a spouse dies. But the impact could be smaller than expected, experts say.
-- CIA chief makes historic trip to Cuba as US blockade chokes island's energy supplies. The U.S. has been restricting oil shipments to Cuba since January, plunging the country into blackouts lasting days at a time.
-- Family investors turn to old-economy businesses like dealerships and fisheries to avoid AI disruption. While car dealerships and fisheries are less eye-catching than high-flying AI startups, they offer stability and cash flow that's attractive to family offices.
 - Stocks Sink in Broad AI Rout Sparked by China's DeepSeek. U.S. stocks were mostly lower, with the Nasdaq leading declines as makers of AI infrastructure suffered steep falls, many in the double digits. Nvidia was down 16%.
 - Comex Gold, Silver Settle Lower. Gold settled 1.4% lower, down two of the past three sessions, and silver fell 2.5%, down three of the past four sessions.
 - DeepSeek Won't Sink U.S. AI Titans. Panic fueling the selloff of Nvidia, Broadcom and other tech giants is overblown.
@@ -80,43 +80,43 @@ Live news headlines fetched 2026-05-15:
 - In China, a Cat-and-Mouse Game to Rein In Crypto. Recent court cases reveal how middlemen are facilitating a booming trade, eluding a crackdown.
 - One House, Three Owners: The Ballooning Cost of the American Dream. The story of home affordability in the U.S. told from a single front porch.
 - Trump Adds Fuel to Claims That Big Banks Discriminate Against Conservatives. The president has told Bank of America and JPMorgan Chase to stop cutting conservatives off from doing business.
-- Monster Beverage CFO Thomas Kelly sells $614,670 in company stock. 
-- Monster beverage chief strategy officer sells $8.48m in stock. 
-- Fortinet CFO Christiane Ohlgart sells $90,720 of stock. 
-- Monster Beverage director Mark J. Hall sells $4.6m in stock. 
-- Axe Compute updates at-the-market offering to allow up to $100 million in stock sales. 
-- Form 13G Oric Pharmaceuticals For: 15 May. 
-- Form 13G Veradermics For: 15 May. 
-- Form 13G Pharvaris N.V. For: 15 May. 
-- Factbox-Trump undertakes sweeping makeover of White House and Washington. 
-- Form 13G Ginkgo Bioworks Holdings For: 15 May. 
-- Golden Opportunity PDO: This Rarely Happens. 
-- Affirm Holdings, Inc. (AFRM) Discusses Vision, Growth Drivers, and Medium-Term Financial Framework Update Transcript. 
-- Diversified Royalty Corp. (DIV:CA) M&A Call Transcript. 
-- Palantir: Riding The AI Wave, But Limited Margin Of Safety. 
-- Syensqo SA/NV (SYNSY) Q1 2026 Earnings Call Transcript. 
-- Dillards - A 3-Year Review In 2026 With A 'HOLD'. 
-- FS KKR Capital: My Biggest BDC Failure By Far (Rating Downgrade). 
-- B2Gold: The Re-Rating Setup Is Building As A New Era Begins. 
-- Western Alliance Bancorporation (WAL) Analyst/Investor Day Transcript. 
-- Great Buy-The-Dip Opportunity: Deeply Discounted 7.8-11% Yields With Buybacks. 
-- Micron: How Long Will The AI Trade Last?. 
-- Short Selling And Put Buying Point To Continuing Rally. 
-- Brookfield Renewable Set To Have Single Corporate Structure As Inflation Spikes. 
-- Electrovaya: Finding New Markets For Battery Technology. 
-- When Values Meet Capital: How Trust Structures Are Quietly Reshaping Impact Investing. 
-- Lassonde Industries Inc. (LAS.A:CA) Shareholder/Analyst Call Prepared Remarks Transcript. 
-- Arrive AI Inc. (ARAI) Q1 2026 Earnings Call Transcript. 
-- MiNK Therapeutics, Inc. (INKT) Q1 2026 Earnings Call Transcript. 
-- Zhejiang Leapmotor Technology Co., Ltd. (ZJLMF) Q1 2026 Earnings Call Transcript. 
-- Update On The Leveraged Coinbase ETF CONL. 
-- Oil Prices Drive Inflation Above Wages: A Blip, Not A Trend. 
-- Kyivstar Q1 Earnings Review: Staying Bullish Amid Improved Expectations. 
-- Aviva plc (AVVIY) Q1 2026 Sales/Trading Call Transcript. 
-- OTP Bank Nyrt. (OTPBF) Q1 2026 Earnings Call Transcript. 
-- Brava Energia S.A. 2026 Q1 - Results - Earnings Call Presentation. 
-- QuoteMedia, Inc. (QMCI) Q1 2026 Earnings Call Transcript. 
-- Alpha Cognition Inc. (ACOG) Q1 2026 Earnings Call Transcript. 
-- Roche To Acquire PathAI: Smart Dealmaking By A Smart Pharma. 
-- Prairie Operating Co. 2026 Q1 - Results - Earnings Call Presentation. 
-- Bloom Energy: Oracle, Brookfield, And The Path To Upside. 
+- Trump says Xi agrees Iran must open strait, China says war should not have started. 
+- Pope to visit UNESCO, hit by Trump cuts, during September trip to France. 
+- Delta Air Lines soars 64% after InvestingPro Fair Value signal. 
+- Analysis-Trump returns from China with stability and a stalemate. 
+- Citi: Broadening is a necessary condition for meaningful index upside from here. 
+- How InvestingPro’s Fair Value spotted Prestige Healthcare’s 46% drop. 
+- Iran to unveil Strait of Hormuz traffic plans, will collect tolls. 
+- Trump says Iran war is worth the economic pain. These rural voters agree. 
+- OpenAI seals deal in Malta to give all Maltese access to ChatGPT Plus. 
+- Canada deepens Arctic defense ties with Nordics after Trump threats. 
+- Cerebras: Don't Buy This Post-IPO Dip Just Yet. 
+- The REIT Repricing Cycle Is Nearing A Turning Point. 
+- LegalZoom: Premium Subscription Packages Are Driving Growth. 
+- Applied Materials: AI Chip Equipment Boom Looks Priced For Perfection. 
+- NVE Corporation: A Great Niche, But With Limited Upside. 
+- ExlService Holdings, Inc. (EXLS) Analyst/Investor Day Transcript. 
+- PEDEVCO Corp. (PED) Q1 2026 Earnings Call Transcript. 
+- TSI: Not Well-Positioned For The Current Environment, And NAV Is Declining. 
+- What Moved Markets This Week. 
+- AVK: Offers A Double-Digit Yield At A Discounted Valuation. 
+- Celsius: Competition Concerns Create A Compelling Buying Opportunity. 
+- National Grid plc (NGG) Q4 2026 Earnings Call Transcript. 
+- Meta: Still A Mag 7 Bargain. 
+- AI Does Not Kill Cybersecurity, It Enhances The Opportunity. 
+- Global X Emerging Markets Bond ETF Q1 2026 Commentary. 
+- The Charles Schwab Corporation (SCHW) Analyst/Investor Day Transcript. 
+- April U.S. Retail Sales Rise As Expected; Default Risk Climbs. 
+- Sticky Inflation Tests Markets As Credit Holds Firm. 
+- The Tribulations Of Kevin Warsh. 
+- Rogers: 50x P/E+ Without A Yield And With Significant Risk. 
+- SHYG: The Truth Behind The Numbers. 
+- Vir Biotechnology: Trading Near Cash Value With A Huge Revenue Opportunity. 
+- HCI Group: Synchrony In Fundamentals And Valuation Ensures Security. 
+- Royalty Pharma: Strong Execution, Expanding Pipeline And More Firepower Ahead. 
+- Vale: Why I'm Not Buying This ~5x EBITDA Multiple Yet. 
+- MKS Inc.: Robust Q1 Beat; Maintaining Buy On Advanced Logic And Memory Momentum. 
+- Virgin Galactic Holdings, Inc. 2026 Q1 - Results - Earnings Call Presentation. 
+- Applied Materials, Inc. 2026 Q2 - Results - Earnings Call Presentation. 
+- Weekly Commentary: Bonds Bludgeoned. 
+- Trip.com: Post-Investigation Plummet Offers Opportunity Given China's Tourism Tailwind. 

@@ -2277,7 +2277,7 @@ EXTRA_RSS_FEEDS = [
 ]
 
 
-def load_yfinance_fundamentals(tickers: list[str]) -> pd.DataFrame:
+def load_yfinance_fundamentals(tickers: list[str], delay: float = 0.5) -> pd.DataFrame:
     """
     Fetch fundamental data from Yahoo Finance (no API key required).
     Returns DataFrame with columns: ticker, pe_ratio, revenue_growth, beta,
@@ -2329,7 +2329,8 @@ def load_yfinance_fundamentals(tickers: list[str]) -> pd.DataFrame:
                 ),
                 "recommendation": str(info.get("recommendationKey", "none")),
             })
-            log.info("  yfinance: fetched fundamentals for %s", ticker)
+            log.info("  yfinance fundamentals: %s", ticker)
+            time.sleep(delay)  # Rate limiting
         except Exception as exc:
             log.warning("  yfinance %s failed: %s", ticker, exc)
 
@@ -2338,7 +2339,7 @@ def load_yfinance_fundamentals(tickers: list[str]) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-def load_yfinance_options_sentiment(tickers: list[str], as_of: datetime.date) -> pd.DataFrame:
+def load_yfinance_options_sentiment(tickers: list[str], as_of: datetime.date, delay: float = 0.5) -> pd.DataFrame:
     """
     Fetch options chain from Yahoo Finance and compute put/call ratio.
     Supplements the Polygon options data.
@@ -2372,6 +2373,8 @@ def load_yfinance_options_sentiment(tickers: list[str], as_of: datetime.date) ->
                 "yf_put_call_ratio": round(pc_ratio, 4),
                 "yf_implied_volatility_avg": round(avg_iv, 4),
             })
+            log.info("  yfinance options: %s", ticker)
+            time.sleep(delay)  # Rate limiting
         except Exception as exc:
             log.warning("  yfinance options %s failed: %s", ticker, exc)
 
@@ -3445,7 +3448,7 @@ def fetch_news_corpus_notes() -> list[str]:
     all_feeds = RSS_FEEDS + EXTRA_RSS_FEEDS
     for url in all_feeds:
         try:
-            r = httpx.get(url, timeout=15, headers={"User-Agent": "AI-Trader research edenjcokeer@gmail.com"})
+            r = httpx.get(url, timeout=15, headers={"User-Agent": settings.sec_edgar_user_agent or "AI-Trader research"})
             r.raise_for_status()
             root = ET.fromstring(r.text)
             items = root.findall(".//item")
@@ -3717,8 +3720,8 @@ def main() -> None:
         "options": lambda: load_options_put_call_ratios(tickers, max_date) if tickers else pd.DataFrame(),
         "institutional": lambda: load_13f_changes(tickers, min_date, max_date) if tickers else pd.DataFrame(),
         "short_interest": lambda: load_short_interest(tickers, min_date, max_date) if tickers else pd.DataFrame(),
-        "yf_fundamentals": lambda: load_yfinance_fundamentals(tickers),
-        "yf_options": lambda: load_yfinance_options_sentiment(tickers, max_date),
+        # "yf_fundamentals": lambda: load_yfinance_fundamentals(tickers, delay=0.75) if tickers else pd.DataFrame(),  # Run separately at end
+        # "yf_options": lambda: load_yfinance_options_sentiment(tickers, max_date, delay=0.75) if tickers else pd.DataFrame(),  # Run separately at end
         "reddit": lambda: load_reddit_multi_subreddit(tickers, settings),
         "wiki": lambda: load_wikipedia_pageviews(tickers, min_date, max_date) if tickers else pd.DataFrame(),
         "usa_spending": lambda: load_usaspending_contracts(tickers, min_date, max_date) if tickers else pd.DataFrame(),
@@ -3759,8 +3762,7 @@ def main() -> None:
     options_df = expanded["options"]
     inst_df = expanded["institutional"]
     short_interest_df = expanded["short_interest"]
-    yf_fundamentals_df = expanded["yf_fundamentals"]
-    yf_options_df = expanded["yf_options"]
+    # yf_fundamentals_df and yf_options_df are fetched in post-processing after main write
     reddit_df = expanded["reddit"]
     wiki_df = expanded["wiki"]
     usa_spending_df = expanded["usa_spending"]
@@ -3911,13 +3913,12 @@ def main() -> None:
                         return {c: 0 for c in cols}
                     return {c: _safe_cell(sub.iloc[0].get(c, 0)) for c in cols}
 
-                yf_fund = _get_ticker_only(yf_fundamentals_df, ticker, [
+                yf_fund = _get_ticker_only(pd.DataFrame(), ticker, [
                     "pe_ratio", "forward_pe", "revenue_growth", "earnings_growth", "beta",
                     "analyst_upside_pct", "short_ratio", "profit_margin", "debt_to_equity",
                     "roe", "institutional_pct_held", "fifty_two_week_high_pct", "recommendation",
                 ])
-                yf_opt = _get(yf_options_df, "ticker", ticker, "date", as_of,
-                              ["yf_put_call_ratio", "yf_implied_volatility_avg"])
+                yf_opt = {"yf_put_call_ratio": 0, "yf_implied_volatility_avg": 0}
                 reddit = _get(reddit_df, "ticker", ticker, "date", as_of,
                               ["reddit_mentions", "reddit_sentiment_score"]) if not reddit_df.empty else {"reddit_mentions": 0, "reddit_sentiment_score": 0.0}
                 wiki = _get(wiki_df, "ticker", ticker, "date", as_of,
@@ -4184,6 +4185,82 @@ def main() -> None:
     log.info(
         "Done. Wrote %d new training examples to %s (skipped %d already-ingested).",
         total_written, out_path, skipped,
+    )
+
+    # === Post-processing: Enrich with yfinance data (slow, per-ticker) ===
+    log.info("=== Post-processing: Enriching with yfinance data (slow, 0.75s/ticker) ===")
+    yf_started = time.perf_counter()
+    yf_fundamentals_df = load_yfinance_fundamentals(tickers, delay=0.75)
+    yf_options_df = load_yfinance_options_sentiment(tickers, max_date, delay=0.75)
+    
+    if not yf_fundamentals_df.empty or not yf_options_df.empty:
+        # Read all examples from file
+        examples_data = []
+        with out_path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                if line.strip():
+                    try:
+                        ex_dict = json.loads(line)
+                        examples_data.append(ex_dict)
+                    except Exception as e:
+                        log.warning("Failed to parse example line: %s", e)
+        
+        # Enrich each example with yfinance data
+        def _get_ticker_only(df: pd.DataFrame, ticker_val: str, cols: list[str]) -> dict:
+            if df.empty or "ticker" not in df.columns:
+                return {c: 0 for c in cols}
+            sub = df[df["ticker"] == ticker_val]
+            if sub.empty:
+                return {c: 0 for c in cols}
+            return {c: _safe_cell(sub.iloc[0].get(c, 0)) for c in cols}
+        
+        enriched_count = 0
+        for ex_dict in examples_data:
+            ticker = ex_dict.get("ticker")
+            as_of = ex_dict.get("date")
+            
+            # Merge yfinance fundamentals (ticker-level)
+            yf_fund = _get_ticker_only(yf_fundamentals_df, ticker, [
+                "pe_ratio", "forward_pe", "revenue_growth", "earnings_growth", "beta",
+                "analyst_upside_pct", "short_ratio", "profit_margin", "debt_to_equity",
+                "roe", "institutional_pct_held", "fifty_two_week_high_pct", "recommendation",
+            ])
+            ex_dict["yf_pe_ratio"] = float(yf_fund.get("pe_ratio") or 0.0)
+            ex_dict["yf_forward_pe"] = float(yf_fund.get("forward_pe") or 0.0)
+            ex_dict["yf_revenue_growth"] = float(yf_fund.get("revenue_growth") or 0.0)
+            ex_dict["yf_earnings_growth"] = float(yf_fund.get("earnings_growth") or 0.0)
+            ex_dict["yf_beta"] = float(yf_fund.get("beta") or 1.0)
+            ex_dict["yf_analyst_upside_pct"] = float(yf_fund.get("analyst_upside_pct") or 0.0)
+            ex_dict["yf_short_ratio"] = float(yf_fund.get("short_ratio") or 0.0)
+            ex_dict["yf_profit_margin"] = float(yf_fund.get("profit_margin") or 0.0)
+            ex_dict["yf_debt_to_equity"] = float(yf_fund.get("debt_to_equity") or 0.0)
+            ex_dict["yf_roe"] = float(yf_fund.get("roe") or 0.0)
+            ex_dict["yf_institutional_pct_held"] = float(yf_fund.get("institutional_pct_held") or 0.0)
+            ex_dict["yf_fifty_two_week_high_pct"] = float(yf_fund.get("fifty_two_week_high_pct") or 0.0)
+            ex_dict["yf_recommendation"] = str(yf_fund.get("recommendation") or "none")
+            
+            # Merge yfinance options (date-specific)
+            yf_opts = []
+            if not yf_options_df.empty:
+                opts = yf_options_df[(yf_options_df["ticker"] == ticker) & (yf_options_df["date"] == as_of)]
+                if not opts.empty:
+                    yf_opts = [_safe_cell(opts.iloc[0].get(c, 0)) for c in ["yf_put_call_ratio", "yf_implied_volatility_avg"]]
+            
+            ex_dict["yf_put_call_ratio"] = float(yf_opts[0] if len(yf_opts) > 0 else 0.0)
+            ex_dict["yf_implied_volatility_avg"] = float(yf_opts[1] if len(yf_opts) > 1 else 0.0)
+            enriched_count += 1
+        
+        # Write enriched examples back to file
+        with out_path.open("w", encoding="utf-8") as fh:
+            for ex_dict in examples_data:
+                fh.write(json.dumps(ex_dict) + "\n")
+        
+        log.info("Enriched %d examples with yfinance data", enriched_count)
+    
+    profiler.record(
+        "yfinance_enrichment_total",
+        seconds=time.perf_counter() - yf_started,
+        rows=len(yf_fundamentals_df) + len(yf_options_df),
     )
 
     from ai_trader.training.review_queue import pending_count
