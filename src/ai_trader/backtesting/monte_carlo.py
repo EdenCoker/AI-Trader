@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from ai_trader.backtesting.metrics import cvar, max_drawdown, sharpe_ratio
+from ai_trader.backtesting.metrics import cvar
 
 
 @dataclass(frozen=True)
@@ -49,9 +49,25 @@ class StressMonteCarlo:
 
     def _summarize(self, paths: np.ndarray) -> MonteCarloResult:
         self.last_paths = paths
-        sharpes = np.array([sharpe_ratio(path) for path in paths])
+        n_steps = paths.shape[1] if paths.ndim > 1 else 0
+
+        # Vectorized Sharpe: avoid a Python-level loop over 10 000+ paths.
+        # Matches sharpe_ratio() exactly: annualised excess return / excess std, ddof=1.
+        if n_steps < 2:
+            sharpes = np.zeros(len(paths))
+        else:
+            _rf = 0.05 / 252  # daily risk-free rate (matches metrics.sharpe_ratio defaults)
+            excess = paths - _rf
+            mean_exc = np.mean(excess, axis=1)
+            std_exc = np.std(excess, axis=1, ddof=1)
+            sharpes = np.where(std_exc > 0, mean_exc / std_exc * np.sqrt(252), 0.0)
+
+        # Vectorized max-drawdown across all paths simultaneously.
         equity = np.cumprod(1 + paths, axis=1)
-        drawdowns = np.array([max_drawdown(path) for path in equity])
+        running_max = np.maximum.accumulate(equity, axis=1)
+        dd_matrix = (running_max - equity) / np.maximum(running_max, 1e-12)
+        drawdowns = np.max(dd_matrix, axis=1)
+
         terminal_returns = equity[:, -1] - 1
         return MonteCarloResult(
             n_simulations=self.n_simulations,
