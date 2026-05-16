@@ -11,7 +11,7 @@ import pandas as pd
 from pydantic import BaseModel, ConfigDict, Field
 
 from ai_trader.backtesting.data_loader import PolygonDataLoader
-from ai_trader.backtesting.metrics import max_drawdown, sharpe_ratio, stability_score
+from ai_trader.backtesting.metrics import cagr, max_drawdown, sharpe_ratio, stability_score
 from ai_trader.backtesting.replay import EventReplay
 from ai_trader.domain.signals import SignalDirection
 from ai_trader.smart_money.scoring import SmartMoneyScorer
@@ -81,6 +81,7 @@ class WalkForwardResult(BaseModel):
     sharpe: float
     max_drawdown: float
     stability: float
+    cagr: float = 0.0
     trades: tuple[TradeRecord, ...] = ()
     metadata: dict = Field(default_factory=dict)
 
@@ -181,6 +182,7 @@ class WalkForwardEngine:
             sharpe=sharpe_ratio(returns),
             max_drawdown=max_drawdown(equity),
             stability=stability_score(window_sharpes),
+            cagr=cagr(returns),
             trades=tuple(all_trades),
             metadata={
                 "mode": "event_replay" if replay is not None else "price_replay_baseline",
@@ -205,16 +207,17 @@ class WalkForwardEngine:
             return []
         trades: list[TradeRecord] = []
         frame = frame.sort_values("date").reset_index(drop=True)
-        event_days = sorted(
-            {event.effective_date for event in replay.events_on(window.test_start, ticker=ticker)}
-        )
-        for event in replay.events:
-            if (
-                event.ticker == ticker.upper()
-                and window.test_start <= event.effective_date <= window.test_end
-            ):
-                event_days.append(event.effective_date)
-        for event_day in sorted(set(event_days)):
+        # Collect every unique signal date that falls inside the test window.
+        # events_on(test_start) was previously computed separately, but those
+        # events are already captured by the loop below (test_start is within
+        # [test_start, test_end]), so the pre-pass was redundant.
+        event_days: set[date] = {
+            event.effective_date
+            for event in replay.events
+            if event.ticker == ticker.upper()
+            and window.test_start <= event.effective_date <= window.test_end
+        }
+        for event_day in sorted(event_days):
             available_events = replay.available_as_of(
                 event_day, ticker=ticker, start=window.train_start
             )

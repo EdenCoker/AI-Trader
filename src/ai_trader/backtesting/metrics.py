@@ -27,6 +27,23 @@ def max_drawdown(equity_curve: np.ndarray) -> float:
     return float(np.max(drawdowns))
 
 
+def cagr(returns: np.ndarray, periods_per_year: int = 252) -> float:
+    """Compound Annual Growth Rate computed from a daily-return series.
+
+    Uses the geometric terminal value of the equity curve so it correctly
+    accounts for compounding rather than averaging simple returns.
+    Returns 0.0 for empty or single-element inputs.
+    """
+    returns = _as_array(returns)
+    if returns.size < 2:
+        return 0.0
+    equity_terminal = float(np.prod(1 + returns))
+    years = returns.size / periods_per_year
+    if years <= 0 or equity_terminal <= 0:
+        return 0.0
+    return float(equity_terminal ** (1.0 / years) - 1)
+
+
 def calmar_ratio(returns: np.ndarray, periods_per_year: int = 252) -> float:
     returns = _as_array(returns)
     if returns.size == 0:
@@ -97,4 +114,3 @@ def stability_score(window_sharpes: np.ndarray) -> float:
 
 def _as_array(values: np.ndarray) -> np.ndarray:
     return np.asarray(values, dtype=float)
-
