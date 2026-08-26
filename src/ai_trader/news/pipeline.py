@@ -45,6 +45,16 @@ log = logging.getLogger(__name__)
 
 _DEVELOPING_MAX_AGE = timedelta(hours=2)
 _FADING_SILENCE = timedelta(hours=24)
+# Coverage recorded longer ago than this cannot vouch for the read window.
+_COVERAGE_VALIDITY = timedelta(hours=24)
+# Bound on the O(n^2) similarity pass; the newest sightings win.
+MAX_CLUSTER_ARTICLES = 800
+# Compact the archive once it crosses this size.
+_PRUNE_THRESHOLD_BYTES = 10 * 1024 * 1024
+
+
+def _ensure_utc(moment: datetime) -> datetime:
+    return moment.replace(tzinfo=UTC) if moment.tzinfo is None else moment.astimezone(UTC)
 
 
 def derive_phase(
@@ -231,17 +241,36 @@ class NewsIntelligenceEngine:
             )
         self._worldmonitor_enabled = worldmonitor_enabled
         self._max_age_hours = int(getattr(self._settings, "news_max_age_hours", 96))
-        self._last_coverage: CoverageState = CoverageState.UNAVAILABLE
+        self._enabled = bool(getattr(self._settings, "news_enabled", True))
 
     @property
     def archive(self) -> NewsArchive:
         return self._archive
 
     def collect(self, now: datetime | None = None) -> AcquisitionReport:
-        """One acquisition pass across every enabled path. Never raises."""
+        """One acquisition pass across every enabled path. Never raises.
 
-        now = now or datetime.now(UTC)
+        Only genuinely NEW observations reach the archive: items served
+        from the fetcher's cache/cooldown/failure fallbacks are excluded
+        (they were already recorded when actually fetched), and repeat
+        sightings within the re-sight interval are suppressed via the
+        persisted last-seen sidecar — so story velocity measures news
+        flow, not polling cadence, no matter how often collect() runs.
+        The pass's coverage state is persisted to the coverage ledger,
+        which is what stories() reads at replay time.
+        """
+
+        now = _ensure_utc(now or datetime.now(UTC))
+        if not self._enabled:
+            return AcquisitionReport(
+                fetched_at=now,
+                coverage=CoverageState.UNAVAILABLE,
+                article_count=0,
+                publisher_count=0,
+                notes=("news pipeline disabled via AI_TRADER_NEWS_ENABLED",),
+            )
         articles: list[ObservedArticle] = []
+        observed: list[ObservedArticle] = []
         notes: list[str] = []
         wm_coverage: str | None = None
 
@@ -252,6 +281,7 @@ class NewsIntelligenceEngine:
             result = provider.fetch_digest(now=now)
             wm_coverage = result.coverage.value
             articles.extend(result.articles)
+            observed.extend(result.articles)
             if result.coverage is CoverageState.UNAVAILABLE:
                 notes.append("worldmonitor digest unavailable")
 
@@ -260,8 +290,12 @@ class NewsIntelligenceEngine:
             items, health = self._fetcher.fetch_feed(feed, now=now)
             healths.append(health)
             articles.extend(items)
+            if not health.from_cache:
+                observed.extend(items)
 
-        self._archive.append(articles, fetched_at=now)
+        fresh = self._archive.register_sightings(observed, fetched_at=now)
+        self._archive.append(fresh, fetched_at=now)
+        self._maybe_prune(now)
 
         publisher_count = (
             count_publisher_families([a.effective_publisher for a in articles])
@@ -279,7 +313,7 @@ class NewsIntelligenceEngine:
             coverage = CoverageState.PARTIAL
         else:
             coverage = CoverageState.COMPLETE
-        self._last_coverage = coverage
+        self._archive.record_coverage(coverage.value, at=now)
 
         return AcquisitionReport(
             fetched_at=now,
@@ -291,16 +325,35 @@ class NewsIntelligenceEngine:
             notes=tuple(notes),
         )
 
+    def _maybe_prune(self, now: datetime) -> None:
+        try:
+            if (
+                self._archive.path.exists()
+                and self._archive.path.stat().st_size > _PRUNE_THRESHOLD_BYTES
+            ):
+                kept = self._archive.prune(keep_days=30, now=now)
+                log.info("archive pruned to %d rows", kept)
+        except Exception as exc:  # noqa: BLE001 — maintenance never fails a pass
+            log.warning("archive prune failed: %s", exc)
+
     def stories(
         self,
         as_of: datetime | None = None,
         *,
         coverage: CoverageState | None = None,
     ) -> list[NewsStory]:
-        """Cluster and score everything visible at ``as_of``. Pure read —
-        safe for both live use and backtest replay."""
+        """Cluster and score everything visible at ``as_of``.
 
-        as_of = as_of or datetime.now(UTC)
+        Pure function of (archive files, as_of): the coverage stamped on
+        each story comes from the persisted coverage ledger entry latest
+        at or before ``as_of`` — never from process state — so a backtest
+        replay returns byte-identical stories to what a live read at that
+        moment produced, regardless of session history.
+        """
+
+        as_of = _ensure_utc(as_of or datetime.now(UTC))
+        if not self._enabled:
+            return []
         visible = self._archive.load_visible(as_of, max_age_hours=self._max_age_hours)
         visible = [
             article
@@ -309,11 +362,11 @@ class NewsIntelligenceEngine:
         ]
         if not visible:
             return []
-        effective_coverage = coverage or self._last_coverage
-        if effective_coverage is CoverageState.UNAVAILABLE:
-            # We ARE serving stories from the archive, so the honest label
-            # for unknown/failed acquisition is stale, not unavailable.
-            effective_coverage = CoverageState.STALE
+        if len(visible) > MAX_CLUSTER_ARTICLES:
+            # load_visible returns first_seen-ascending; the newest
+            # sightings are the relevant ones for a live window.
+            visible = visible[-MAX_CLUSTER_ARTICLES:]
+        effective_coverage = coverage or self._resolve_coverage(as_of)
         stories = [
             build_story(members, as_of, effective_coverage)
             for members in cluster_articles(visible)
@@ -322,3 +375,25 @@ class NewsIntelligenceEngine:
             key=lambda s: (-s.importance_score, -s.primary.effective_published_ms())
         )
         return stories
+
+    def _resolve_coverage(self, as_of: datetime) -> CoverageState:
+        """Coverage for an as_of-scoped read, from the persisted ledger.
+
+        No ledger entry, an entry older than 24h, or a recorded
+        unavailable pass all resolve to STALE: we ARE serving archived
+        stories, and the honest label for "acquisition state unknown or
+        failing" is stale, never complete."""
+
+        entry = self._archive.coverage_at(as_of)
+        if entry is None:
+            return CoverageState.STALE
+        state_raw, at = entry
+        if as_of - at > _COVERAGE_VALIDITY:
+            return CoverageState.STALE
+        try:
+            state = CoverageState(state_raw)
+        except ValueError:
+            return CoverageState.STALE
+        if state is CoverageState.UNAVAILABLE:
+            return CoverageState.STALE
+        return state

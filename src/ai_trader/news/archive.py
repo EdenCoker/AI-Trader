@@ -33,6 +33,14 @@ def _sighting_key(article: ObservedArticle) -> str:
     return article.link or f"{article.source_name}|{article.title}"
 
 
+# Minimum spacing between two sightings of the same article that count as
+# distinct observations. Without this, a 5-minute cron would record the
+# same digest item 288 times a day and story "velocity" would measure the
+# polling cadence, not news flow.
+RESIGHT_MIN_INTERVAL_S = 25 * 60
+_LASTSEEN_RETENTION_S = 24 * 60 * 60
+
+
 class NewsArchive:
     def __init__(self, path: Path) -> None:
         self._path = path
@@ -40,6 +48,107 @@ class NewsArchive:
     @property
     def path(self) -> Path:
         return self._path
+
+    def _sidecar(self, suffix: str) -> Path:
+        return self._path.with_name(self._path.stem + suffix)
+
+    # -- re-sight suppression (persisted, so cron-spawned processes agree) --
+    def register_sightings(
+        self, articles: list[ObservedArticle], fetched_at: datetime
+    ) -> list[ObservedArticle]:
+        """Return the articles that count as NEW sightings at ``fetched_at``
+        (first ever, or last counted sighting older than
+        RESIGHT_MIN_INTERVAL_S), and update the last-seen sidecar."""
+
+        if not articles:
+            return []
+        if fetched_at.tzinfo is None:
+            fetched_at = fetched_at.replace(tzinfo=UTC)
+        sidecar = self._sidecar(".lastseen.json")
+        last_seen: dict[str, str] = {}
+        try:
+            loaded = json.loads(sidecar.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                last_seen = {k: v for k, v in loaded.items() if isinstance(v, str)}
+        except (OSError, json.JSONDecodeError):
+            pass
+
+        fresh: list[ObservedArticle] = []
+        for article in articles:
+            key = _sighting_key(article)
+            previous = last_seen.get(key)
+            if previous is not None:
+                try:
+                    previous_dt = datetime.fromisoformat(previous)
+                    if previous_dt.tzinfo is None:
+                        previous_dt = previous_dt.replace(tzinfo=UTC)
+                    if (fetched_at - previous_dt).total_seconds() < RESIGHT_MIN_INTERVAL_S:
+                        continue
+                except ValueError:
+                    pass
+            last_seen[key] = fetched_at.isoformat()
+            fresh.append(article)
+
+        horizon = fetched_at - timedelta(seconds=_LASTSEEN_RETENTION_S)
+        pruned: dict[str, str] = {}
+        for key, value in last_seen.items():
+            try:
+                seen_dt = datetime.fromisoformat(value)
+                if seen_dt.tzinfo is None:
+                    seen_dt = seen_dt.replace(tzinfo=UTC)
+            except ValueError:
+                continue
+            if seen_dt >= horizon:
+                pruned[key] = value
+        tmp = sidecar.with_suffix(".tmp")
+        try:
+            sidecar.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(pruned), encoding="utf-8")
+            tmp.replace(sidecar)
+        except OSError:
+            log.warning("could not persist last-seen sidecar")
+        return fresh
+
+    # -- coverage ledger (persisted, so replay never reads process state) --
+    def record_coverage(self, state: str, at: datetime) -> None:
+        if at.tzinfo is None:
+            at = at.replace(tzinfo=UTC)
+        ledger = self._sidecar(".coverage.jsonl")
+        try:
+            ledger.parent.mkdir(parents=True, exist_ok=True)
+            with ledger.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps({"at": at.isoformat(), "state": state}) + "\n")
+        except OSError:
+            log.warning("could not persist coverage ledger entry")
+
+    def coverage_at(self, as_of: datetime) -> tuple[str, datetime] | None:
+        """Latest recorded acquisition coverage at or before ``as_of``."""
+
+        if as_of.tzinfo is None:
+            as_of = as_of.replace(tzinfo=UTC)
+        ledger = self._sidecar(".coverage.jsonl")
+        if not ledger.exists():
+            return None
+        best: tuple[str, datetime] | None = None
+        try:
+            with ledger.open(encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                        at = datetime.fromisoformat(row["at"])
+                        if at.tzinfo is None:
+                            at = at.replace(tzinfo=UTC)
+                        state = str(row["state"])
+                    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                        continue
+                    if at <= as_of and (best is None or at > best[1]):
+                        best = (state, at)
+        except OSError:
+            return None
+        return best
 
     def append(self, articles: list[ObservedArticle], fetched_at: datetime) -> int:
         """Record one sighting per article at ``fetched_at``. Within a
@@ -57,6 +166,15 @@ class NewsArchive:
         seen: set[str] = set()
         written = 0
         with self._path.open("a", encoding="utf-8") as handle:
+            # Self-heal a torn tail: a process killed mid-append can leave
+            # the file without a trailing newline, and appending onto that
+            # fragment would corrupt BOTH rows. One leading newline turns
+            # the fragment into a single malformed line the readers skip.
+            if handle.tell() > 0:
+                with self._path.open("rb") as tail:
+                    tail.seek(-1, 2)
+                    if tail.read(1) != b"\n":
+                        handle.write("\n")
             for article in articles:
                 key = _sighting_key(article)
                 if key in seen:
@@ -96,6 +214,8 @@ class NewsArchive:
                     continue
                 try:
                     row = json.loads(line)
+                    if not isinstance(row, dict):
+                        raise TypeError("archive row is not an object")
                     fetched_at = datetime.fromisoformat(row.pop("_fetched_at"))
                 except (json.JSONDecodeError, KeyError, TypeError, ValueError):
                     log.warning("skipping malformed archive row")
@@ -141,17 +261,26 @@ class NewsArchive:
         now = now or datetime.now(UTC)
         cutoff = now - timedelta(days=keep_days)
         kept: list[str] = []
+        dropped_malformed = 0
         with self._path.open(encoding="utf-8") as handle:
             for line in handle:
                 stripped = line.strip()
                 if not stripped:
                     continue
                 try:
-                    fetched_at = datetime.fromisoformat(json.loads(stripped)["_fetched_at"])
-                except (json.JSONDecodeError, KeyError, ValueError):
+                    row = json.loads(stripped)
+                    if not isinstance(row, dict):
+                        raise TypeError("archive row is not an object")
+                    fetched_at = datetime.fromisoformat(row["_fetched_at"])
+                    if fetched_at.tzinfo is None:
+                        fetched_at = fetched_at.replace(tzinfo=UTC)
+                except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                    dropped_malformed += 1
                     continue
                 if fetched_at >= cutoff:
                     kept.append(stripped)
+        if dropped_malformed:
+            log.warning("prune dropped %d malformed archive rows", dropped_malformed)
         tmp = self._path.with_suffix(".tmp")
         tmp.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8")
         tmp.replace(self._path)

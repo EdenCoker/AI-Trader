@@ -85,7 +85,8 @@ _COMPANY_NAMES: dict[str, str] = {
     "caterpillar": "CAT",
     "deere": "DE",
     "john deere": "DE",
-    "3m": "MMM",
+    # "3M" is deliberately absent: lowercase "3m" is almost always an
+    # abbreviation for 3 million/meters/months; use the $MMM cashtag.
     "honeywell": "HON",
     "united airlines": "UAL",
     "delta air lines": "DAL",
@@ -99,7 +100,6 @@ _COMPANY_NAMES: dict[str, str] = {
     "airbnb": "ABNB",
     "shopify": "SHOP",
     "spotify": "SPOT",
-    "zoom": "ZM",
     "robinhood": "HOOD",
     "gamestop": "GME",
     "amc entertainment": "AMC",
@@ -129,14 +129,23 @@ _AMBIGUOUS_NAMES: dict[str, str] = {
     "target": "TGT",
     "gap": "GAP",
     "alcoa": "AA",
+    "zoom": "ZM",
 }
 
-_CONTEXT_WORDS_RE = re.compile(
-    r"\b(shares?|stock|earnings|revenue|profit|quarter|guidance|forecast|ceo|cfo|"
-    r"ipo|dividend|market cap|investors?|nasdaq|nyse|wall street|price target|"
-    r"upgrade[ds]?|downgrade[ds]?|beats?|misses?|acquisition|merger|buyback)\b",
-    re.IGNORECASE,
+# Adjacency gate for ambiguous names. Mere co-occurrence of a context word
+# anywhere in the headline is self-defeating ("Walmart price target raised"
+# contains "target"; "Gap between rich and poor widens" plus any market
+# noun would tag GAP) — the ambiguous name itself must sit directly
+# against company-shaped context: "Target shares", "Target beats
+# estimates", "shares of Target", "Target's CEO", "Target Corp".
+_ADJACENT_AFTER = (
+    r"(?:'s)?\s+(?:shares?|stock|earnings|revenue|profits?|guidance|forecast|"
+    r"outlook|ceo|cfo|dividend|buyback|q[1-4]|quarterly|"
+    r"beats?|misses?|tops?|posts?|reports?|raises?|cuts?|lowers?|jumps?|"
+    r"falls?|surges?|slides?|rallies|corp|inc)\b"
 )
+_ADJACENT_BEFORE = r"(?:shares?\s+of|stake\s+in|owner\s+of|retailer|chipmaker)\s+"
+
 
 
 def _name_pattern(names: Mapping[str, str]) -> re.Pattern[str] | None:
@@ -147,7 +156,17 @@ def _name_pattern(names: Mapping[str, str]) -> re.Pattern[str] | None:
 
 
 _UNAMBIGUOUS_RE = _name_pattern(_COMPANY_NAMES)
-_AMBIGUOUS_RE = _name_pattern(_AMBIGUOUS_NAMES)
+_AMBIGUOUS_ADJACENT_RES: tuple[tuple[re.Pattern[str], str], ...] = tuple(
+    (
+        re.compile(
+            r"(?:\b" + re.escape(name) + _ADJACENT_AFTER
+            + r"|" + _ADJACENT_BEFORE + re.escape(name) + r"\b)",
+            re.IGNORECASE,
+        ),
+        symbol,
+    )
+    for name, symbol in _AMBIGUOUS_NAMES.items()
+)
 
 
 def extract_tickers(
@@ -176,9 +195,9 @@ def extract_tickers(
         for match in _UNAMBIGUOUS_RE.finditer(text):
             add(_COMPANY_NAMES[match.group(1).lower()])
 
-    if _AMBIGUOUS_RE is not None and _CONTEXT_WORDS_RE.search(text):
-        for match in _AMBIGUOUS_RE.finditer(text):
-            add(_AMBIGUOUS_NAMES[match.group(1).lower()])
+    for pattern, symbol in _AMBIGUOUS_ADJACENT_RES:
+        if pattern.search(text):
+            add(symbol)
 
     if extra_names:
         extra_pattern = _name_pattern(extra_names)

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
@@ -32,6 +33,14 @@ log = logging.getLogger(__name__)
 DEFAULT_BASE_URL = "https://api.worldmonitor.app"
 DIGEST_PATH = "/api/news/v1/list-feed-digest"
 REQUEST_TIMEOUT_S = 15.0
+
+# Bounds on what a digest response may contribute. The RSS path caps at
+# MAX_ITEMS_PER_FEED; the digest gets equivalent caps so a huge (or
+# hostile) payload cannot flood the archive or the O(n^2) cluster pass.
+MAX_CATEGORIES = 20
+MAX_ITEMS_PER_CATEGORY = 50
+MAX_TOTAL_ITEMS = 500
+MAX_TITLE_LEN = 300
 
 _PHASE_MAP = {
     "STORY_PHASE_BREAKING": "breaking",
@@ -66,10 +75,18 @@ def _parse_published_at(value: Any, now: datetime) -> datetime | None:
     return parsed
 
 
-def _score_or_none(value: Any) -> int | None:
+def _score_or_none(value: Any, lo: int, hi: int) -> int | None:
+    """Clamped upstream score. Rejects non-numbers and non-finite values
+    (NaN/Infinity survive JSON parsing via httpx); clamps the rest so a
+    hostile or buggy digest can never push a score outside [lo, hi] —
+    an out-of-range value would fail NewsStory validation downstream and
+    poison every stories() read for the archive window."""
+
     if isinstance(value, bool) or not isinstance(value, int | float):
         return None
-    return round(value)
+    if not math.isfinite(value):
+        return None
+    return max(lo, min(hi, round(value)))
 
 
 class WorldMonitorDigestResult:
@@ -123,15 +140,16 @@ class WorldMonitorNewsProvider:
                 )
                 response.raise_for_status()
                 payload = response.json()
+            return self._normalize(payload, now)
         except Exception as exc:  # noqa: BLE001 — availability beats purity
             log.warning("worldmonitor digest fetch failed: %s", exc)
             return WorldMonitorDigestResult([], CoverageState.UNAVAILABLE, None)
 
-        return self._normalize(payload, now)
-
     def _normalize(
-        self, payload: dict[str, Any], now: datetime
+        self, payload: Any, now: datetime
     ) -> WorldMonitorDigestResult:
+        if not isinstance(payload, dict):
+            return WorldMonitorDigestResult([], CoverageState.UNAVAILABLE, None)
         categories = payload.get("categories")
         if not isinstance(categories, dict) or not categories:
             return WorldMonitorDigestResult([], CoverageState.UNAVAILABLE, None)
@@ -145,14 +163,16 @@ class WorldMonitorNewsProvider:
                 coverage = CoverageState.PARTIAL
 
         articles: list[ObservedArticle] = []
-        for category, bucket in categories.items():
+        for category, bucket in list(categories.items())[:MAX_CATEGORIES]:
             items = bucket.get("items") if isinstance(bucket, dict) else None
             if not isinstance(items, list):
                 continue
-            for item in items:
+            for item in items[:MAX_ITEMS_PER_CATEGORY]:
+                if len(articles) >= MAX_TOTAL_ITEMS:
+                    break
                 if not isinstance(item, dict):
                     continue
-                article = self._normalize_item(item, category, now)
+                article = self._normalize_item(item, str(category), now)
                 if article is not None:
                     articles.append(article)
 
@@ -167,7 +187,7 @@ class WorldMonitorNewsProvider:
     def _normalize_item(
         self, item: dict[str, Any], category: str, now: datetime
     ) -> ObservedArticle | None:
-        title = str(item.get("title") or "").strip()
+        title = str(item.get("title") or "").strip()[:MAX_TITLE_LEN]
         if not title:
             return None
         link = str(item.get("link") or "").strip()
@@ -197,8 +217,8 @@ class WorldMonitorNewsProvider:
             tickers=tickers,
             snippet=str(item.get("snippet") or "")[:500],
             provenance="worldmonitor",
-            server_importance=_score_or_none(item.get("importanceScore")),
-            server_credibility=_score_or_none(item.get("credibilityScore")),
+            server_importance=_score_or_none(item.get("importanceScore"), 0, 200),
+            server_credibility=_score_or_none(item.get("credibilityScore"), 0, 100),
             metadata={
                 "category": category,
                 "corroboration_count": item.get("corroborationCount"),
@@ -218,14 +238,22 @@ class WorldMonitorNewsProvider:
         start: datetime,
         end: datetime,
     ) -> Sequence[NewsArticle]:
+        """Live-window protocol implementation.
+
+        The window gates on ``first_seen_at`` (observation time), never on
+        the publisher-claimed ``published_at`` — the package's
+        no-lookahead axis. Because a digest pull observes everything NOW,
+        a genuinely historical window correctly returns nothing here; use
+        ``NewsArchive.load_visible`` to replay past observations.
+        """
+
         wanted = {ticker.upper() for ticker in tickers}
         result = self.fetch_digest()
         out: list[NewsArticle] = []
         for article in result.articles:
             if wanted and not wanted.intersection(article.tickers):
                 continue
-            stamp = article.published_at or article.first_seen_at
-            if not (start <= stamp <= end):
+            if not (start <= article.first_seen_at <= end):
                 continue
             out.append(article.to_domain())
         return out

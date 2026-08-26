@@ -67,7 +67,9 @@ _RULES: tuple[tuple[str, int, int, tuple[str, ...]], ...] = (
     )),
     ("mna", 75, 1, (
         "acquires", "to acquire", "acquisition of", "merger", "merges with", "to merge",
-        "takeover bid", "buyout offer", "to buy", "agrees to buy", "acquisition talks",
+        # Negative lookahead: "to buy back" is a buyback announcement, not
+        # M&A — without it this rule shadows the buyback rule below.
+        "takeover bid", "buyout offer", r"re:to buy(?!\s*back)", "acquisition talks",
     )),
     ("guidance_raise", 75, 1, (
         r"re:(?:raises?|lifts?|boosts?|hikes?|increases?)\s+(?:[\w-]+\s+){0,3}"
@@ -91,7 +93,10 @@ _RULES: tuple[tuple[str, int, int, tuple[str, ...]], ...] = (
         "upgrades", "upgraded", "raises price target", "raised to buy",
     )),
     ("dividend_cut", 50, -1, ("cuts dividend", "suspends dividend", "dividend cut")),
-    ("buyback", 50, 1, ("buyback", "share repurchase", "dividend increase", "raises dividend")),
+    ("buyback", 50, 1, (
+        "buyback", "buy back", "buys back", "share repurchase", "repurchase program",
+        "dividend increase", "raises dividend",
+    )),
     ("layoffs", 50, 0, ("layoffs", "job cuts", "cuts jobs", "workforce reduction")),
     ("contract_win", 50, 1, ("wins contract", "awarded contract", "wins order", "lands deal")),
     ("macro_rates", 50, 0, (

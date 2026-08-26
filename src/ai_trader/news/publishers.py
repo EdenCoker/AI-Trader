@@ -21,9 +21,13 @@ import re
 
 _FAMILY_SUFFIXES = re.compile(
     r"\s+(world|us|u\.s\.|uk|business|markets?|finance|financial|money|news|"
-    r"top\s+stories|breaking|live|latest|wire|via\s+google\s+news)$",
+    r"top\s+stories|top\s+news|breaking|live|latest|wire|releases?|press|"
+    r"via\s+google\s+news)$",
     re.IGNORECASE,
 )
+# Aggregator-route parentheticals: "Reuters Business (GNews)" is still the
+# Reuters newsroom.
+_PARENTHETICAL = re.compile(r"\s*\([^)]*\)\s*$")
 
 # Explicit family assignments for sources whose label does not reduce to
 # the family via suffix-stripping alone.
@@ -61,6 +65,17 @@ _EXPLICIT_FAMILIES: dict[str, str] = {
     "sec": "sec",
     "u.s. securities and exchange commission": "sec",
     "securities and exchange commission": "sec",
+    # Curated FINANCE_FEEDS labels whose family isn't reachable by suffix
+    # stripping alone. tests/test_news_scoring.py asserts EVERY feed label
+    # resolves to a tiered family, so a new feed with an unmapped label
+    # fails the build instead of silently scoring as tier-4 unknown.
+    "cnbc top news": "cnbc",
+    "seeking alpha market currents": "seekingalpha",
+    "pr newswire releases": "prnewswire",
+    "globenewswire public companies": "globenewswire",
+    "federal reserve press": "federalreserve",
+    "sec press releases": "sec",
+    "nyt business": "nyt",
 }
 
 _SOURCE_TIERS: dict[str, int] = {
@@ -103,7 +118,7 @@ _LOW_RISK_FAMILIES: frozenset[str] = frozenset(_SOURCE_TIERS)
 def publisher_family(source_name: str) -> str:
     """Collapse a feed label to its publisher family key."""
 
-    name = source_name.strip().lower()
+    name = _PARENTHETICAL.sub("", source_name.strip().lower())
     if not name:
         return "unknown"
     if name in _EXPLICIT_FAMILIES:

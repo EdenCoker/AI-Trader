@@ -88,9 +88,13 @@ def importance_score(
         # Blend with the upstream (worldmonitor) score when present: the
         # server sees corroboration across hundreds of feeds we don't
         # fetch; our local score sees the finance-event taxonomy it
-        # doesn't. The mean keeps either side from dominating.
-        return round((local + min(article.server_importance, 200)) / 2)
-    return local
+        # doesn't. The mean keeps either side from dominating. The
+        # provider clamps at ingestion; the clamp here is defense in
+        # depth — an out-of-range value would fail NewsStory validation
+        # and poison every read of the archive window.
+        server = max(0, min(200, article.server_importance))
+        return max(0, round((local + server) / 2))
+    return max(0, local)
 
 
 def credibility_score(

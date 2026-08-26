@@ -3450,6 +3450,10 @@ def load_gdelt_news_tone(tickers: list[str], start: datetime.date, end: datetime
 
 def fetch_news_corpus_notes() -> list[str]:
     """Pull headlines from RSS feeds and return as plain-text notes."""
+    # `settings` is function-local everywhere else in this script; the old
+    # module-level reference here raised NameError on every feed and the
+    # broad except reported it as a fetch failure.
+    settings = get_settings()
     notes: list[str] = []
     all_feeds = RSS_FEEDS + EXTRA_RSS_FEEDS
     for url in all_feeds:

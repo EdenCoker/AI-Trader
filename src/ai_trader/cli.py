@@ -154,6 +154,21 @@ def gui(
     run_gui(host=host, port=port, open_browser=open_browser)
 
 
+def _parse_as_of_utc(as_of: str | None):
+    """Parse --as-of. A timestamp without an offset means UTC — matching
+    the archive's storage convention — NOT machine-local time, so replays
+    are reproducible across machines."""
+
+    from datetime import UTC, datetime
+
+    if not as_of:
+        return datetime.now(UTC)
+    parsed = datetime.fromisoformat(as_of)
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
 @news_app.command("pull")
 def news_pull(
     output: Path | None = typer.Option(
@@ -184,12 +199,8 @@ def news_stories(
     """Cluster and score archived news into ranked stories."""
 
     _configure_logging()
-    from datetime import UTC, datetime
-
     engine = NewsIntelligenceEngine()
-    as_of_dt = (
-        datetime.fromisoformat(as_of).astimezone(UTC) if as_of else datetime.now(UTC)
-    )
+    as_of_dt = _parse_as_of_utc(as_of)
     stories = engine.stories(as_of_dt)
     if ticker:
         wanted = ticker.upper()
@@ -218,12 +229,8 @@ def news_signal(
     """Build news Signals for a ticker from the archived story window."""
 
     _configure_logging()
-    from datetime import UTC, datetime
-
     engine = NewsIntelligenceEngine()
-    as_of_dt = (
-        datetime.fromisoformat(as_of).astimezone(UTC) if as_of else datetime.now(UTC)
-    )
+    as_of_dt = _parse_as_of_utc(as_of)
     stories = engine.stories(as_of_dt)
     signals = build_news_signals(stories, ticker, as_of_dt)
     payload = json.dumps(

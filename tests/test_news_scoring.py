@@ -118,3 +118,19 @@ def test_llm_upgrade_cap_blocks_contamination():
     assert cap_llm_upgrade(25, 100) == 75
     assert cap_llm_upgrade(50, 100) == 100
     assert cap_llm_upgrade(75, 25) == 25  # downgrades pass through
+
+
+def test_every_curated_feed_label_resolves_to_a_tiered_family():
+    """A new feed whose label doesn't map to a known family would silently
+    score tier-4 'unknown' and double-count corroboration — fail the build
+    instead."""
+
+    from ai_trader.news.feeds import FINANCE_FEEDS
+
+    families = {}
+    for feed in FINANCE_FEEDS:
+        tier = source_tier(feed.name)
+        assert tier <= 3, (feed.name, tier)
+        families.setdefault(publisher_family(feed.name), []).append(feed.name)
+    # WSJ Markets + WSJ Business are ONE newsroom.
+    assert len(families["wsj"]) == 2

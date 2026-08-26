@@ -95,15 +95,23 @@ class ObservedArticle(BaseModel):
     def to_domain(self) -> NewsArticle:
         from ai_trader.domain.events import SourceName
 
+        source = (
+            SourceName.WORLDMONITOR
+            if self.provenance == "worldmonitor"
+            else SourceName.RSS
+        )
         return NewsArticle(
             article_id=self.article_id,
+            # NewsArticle requires a timestamp; for undated items the
+            # observation time is the only honest stand-in. Availability
+            # gating must always use first_seen_at, never this field.
             published_at=self.published_at or self.first_seen_at,
             title=self.title,
             source_name=self.effective_publisher,
             tickers=self.tickers,
             summary=self.snippet or None,
             url=self.link or None,
-            source=SourceName.INTERNAL,
+            source=source,
         )
 
 
@@ -158,6 +166,10 @@ class FeedHealth(BaseModel):
     dropped_undated: int = 0
     failure: str | None = None
     on_cooldown: bool = False
+    # True when the returned items were served from cache (TTL hit,
+    # cooldown, or failure fallback) rather than freshly fetched — such
+    # items must NOT be archived as new sightings.
+    from_cache: bool = False
     fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 

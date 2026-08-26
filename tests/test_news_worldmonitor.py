@@ -106,10 +106,75 @@ def test_malformed_payload_never_raises():
     assert result.articles == []
 
 
-def test_news_provider_protocol_filters_by_ticker_and_window():
+def test_news_provider_protocol_filters_by_ticker_and_observation_window():
     provider = provider_with(DIGEST)
-    articles = provider.fetch_news(["AAPL"], NOW - timedelta(days=1), NOW)
+    # fetch_news windows on OBSERVATION time (first_seen_at = the live
+    # fetch), never the publisher-claimed pubDate — so the window must
+    # bracket "now", and a historical window returns nothing.
+    now = datetime.now(UTC)
+    articles = provider.fetch_news(["AAPL"], now - timedelta(hours=1), now + timedelta(hours=1))
     assert len(articles) == 1
     assert articles[0].tickers == ("AAPL",)
-    none = provider.fetch_news(["TSLA"], NOW - timedelta(days=1), NOW)
+    none = provider.fetch_news(["TSLA"], now - timedelta(hours=1), now + timedelta(hours=1))
     assert list(none) == []
+    historical = provider.fetch_news(["AAPL"], now - timedelta(days=9), now - timedelta(days=8))
+    assert list(historical) == []
+
+
+def test_non_dict_json_payload_is_unavailable_not_crash():
+    for payload in ([1, 2, 3], "a string", 42, None):
+        result = provider_with(payload).fetch_digest(now=NOW)
+        assert result.coverage is CoverageState.UNAVAILABLE
+        assert result.articles == []
+
+
+def test_negative_and_nonfinite_scores_are_clamped_or_dropped():
+    digest = {
+        "categories": {
+            "markets": {
+                "items": [
+                    {
+                        "source": "X",
+                        "title": "Negative score story",
+                        "link": "https://x/neg",
+                        "publishedAt": PUB_MS,
+                        "importanceScore": -50,
+                        "credibilityScore": 1e9,
+                    }
+                ]
+            }
+        }
+    }
+    result = provider_with(digest).fetch_digest(now=NOW)
+    article = result.articles[0]
+    assert article.server_importance == 0  # clamped, not negative
+    assert article.server_credibility == 100  # clamped, not 1e9
+
+
+def test_digest_item_caps_bound_the_payload():
+    items = [
+        {"source": "X", "title": f"Story {i}", "link": f"https://x/{i}", "publishedAt": PUB_MS}
+        for i in range(200)
+    ]
+    digest = {"categories": {"markets": {"items": items}}}
+    result = provider_with(digest).fetch_digest(now=NOW)
+    assert len(result.articles) == 50  # MAX_ITEMS_PER_CATEGORY
+
+
+def test_overlong_titles_are_truncated():
+    digest = {
+        "categories": {
+            "markets": {
+                "items": [
+                    {
+                        "source": "X",
+                        "title": "A" * 5000,
+                        "link": "https://x/long",
+                        "publishedAt": PUB_MS,
+                    }
+                ]
+            }
+        }
+    }
+    result = provider_with(digest).fetch_digest(now=NOW)
+    assert len(result.articles[0].title) == 300

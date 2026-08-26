@@ -15,6 +15,8 @@ class SourceName(str, Enum):
     REDDIT = "reddit"
     FRED = "fred"
     INTERNAL = "internal"
+    RSS = "rss"
+    WORLDMONITOR = "worldmonitor"
 
 
 class Chamber(str, Enum):

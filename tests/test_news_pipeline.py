@@ -185,3 +185,101 @@ def test_collect_never_raises_and_reports_unavailable(tmp_path):
     report = engine.collect(now=T0)
     assert report.coverage is CoverageState.UNAVAILABLE
     assert report.article_count == 0
+
+
+def test_coverage_ledger_makes_replay_session_independent(tmp_path):
+    """The coverage stamped on a story is a pure function of the archive
+    files + as_of — a fresh process replaying the same as_of must see the
+    same coverage a live read saw (finding: _last_coverage leaked process
+    state into replay and skewed Signal.confidence by up to 40%)."""
+
+    archive_path = tmp_path / "arch.jsonl"
+    live = NewsIntelligenceEngine(
+        settings=AppSettings(),
+        archive=NewsArchive(archive_path),
+        worldmonitor_enabled=False,
+        feeds=(),
+    )
+    live.archive.append(
+        [article(1, "Acme cuts guidance for the year", tickers=("ACME",), seen=T0)],
+        fetched_at=T0,
+    )
+    live.archive.record_coverage("complete", at=T0)
+    as_of = T0 + timedelta(hours=1)
+
+    live_story = live.stories(as_of)[0]
+    assert live_story.coverage is CoverageState.COMPLETE
+
+    # A brand-new engine instance (fresh process) sees the SAME coverage.
+    replay = NewsIntelligenceEngine(
+        settings=AppSettings(),
+        archive=NewsArchive(archive_path),
+        worldmonitor_enabled=False,
+        feeds=(),
+    )
+    replay_story = replay.stories(as_of)[0]
+    assert replay_story.coverage is live_story.coverage
+
+    live_signal = build_news_signal(live_story, "ACME", as_of)
+    replay_signal = build_news_signal(replay_story, "ACME", as_of)
+    assert live_signal.confidence == replay_signal.confidence
+
+
+def test_missing_or_expired_coverage_ledger_reads_as_stale(tmp_path):
+    engine = engine_with_archive(tmp_path)
+    engine.archive.append(
+        [article(1, "Acme cuts guidance for the year", tickers=("ACME",), seen=T0)],
+        fetched_at=T0,
+    )
+    # No ledger entry at all → stale.
+    assert engine.stories(T0 + timedelta(hours=1))[0].coverage is CoverageState.STALE
+    # Entry older than 24h relative to as_of → stale.
+    engine.archive.record_coverage("complete", at=T0)
+    assert engine.stories(T0 + timedelta(hours=30))[0].coverage is CoverageState.STALE
+
+
+def test_resight_suppression_keeps_velocity_honest(tmp_path):
+    """Repeat sightings within 25 minutes are one observation — a 5-minute
+    cron must not inflate mention_count (finding: archive recorded polling
+    cadence as story velocity)."""
+
+    engine = engine_with_archive(tmp_path)
+    item = article(1, "Acme faces SEC probe over disclosures", tickers=("ACME",), seen=T0)
+    for minutes in (0, 5, 10, 15, 20):  # five polls inside one interval
+        fetched = T0 + timedelta(minutes=minutes)
+        fresh = engine.archive.register_sightings([item], fetched_at=fetched)
+        engine.archive.append(fresh, fetched_at=fetched)
+    later = T0 + timedelta(minutes=40)
+    fresh = engine.archive.register_sightings([item], fetched_at=later)
+    engine.archive.append(fresh, fetched_at=later)
+
+    stories = engine.stories(T0 + timedelta(hours=1))
+    assert stories[0].mention_count == 2  # first sighting + the 40-minute one
+
+
+def test_news_enabled_false_gates_collect_and_stories(tmp_path, monkeypatch):
+    monkeypatch.setenv("AI_TRADER_NEWS_ENABLED", "false")
+    engine = NewsIntelligenceEngine(
+        settings=AppSettings(),
+        archive=NewsArchive(tmp_path / "arch.jsonl"),
+        worldmonitor_enabled=False,
+        feeds=(),
+    )
+    report = engine.collect(now=T0)
+    assert report.article_count == 0
+    assert "disabled" in report.notes[0]
+    engine.archive.append(
+        [article(1, "Acme cuts guidance", tickers=("ACME",), seen=T0)], fetched_at=T0
+    )
+    assert engine.stories(T0 + timedelta(hours=1)) == []
+
+
+def test_naive_as_of_is_utc_and_does_not_crash(tmp_path):
+    engine = engine_with_archive(tmp_path)
+    engine.archive.append(
+        [article(1, "Acme cuts guidance for the year", tickers=("ACME",), seen=T0)],
+        fetched_at=T0,
+    )
+    naive = (T0 + timedelta(hours=1)).replace(tzinfo=None)
+    stories = engine.stories(naive)
+    assert len(stories) == 1

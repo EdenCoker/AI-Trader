@@ -40,6 +40,12 @@ MAX_FAILURES_BEFORE_COOLDOWN = 2
 COOLDOWN_S = 5 * 60
 CACHE_TTL_S = 30 * 60
 
+# Hard cap on a feed body: a legitimate RSS feed is tens of KB; a
+# multi-megabyte body is a misconfiguration or an attack on memory
+# (response.text + ET.fromstring both materialize it).
+MAX_RESPONSE_BYTES = 5 * 1024 * 1024
+MAX_TITLE_LEN = 300
+
 BROWSER_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
@@ -123,10 +129,12 @@ def parse_feed_xml(
         else:
             title = _clean_text(item.findtext("title"))
             link = (item.findtext("link") or "").strip()
+            # The namespaced lookup covers dc:date; a literal "dc:date"
+            # findtext can never match under ElementTree (tags are stored
+            # namespace-expanded) and raises on the pure-Python parser.
             date_raw = (
                 item.findtext("pubDate")
                 or item.findtext(f"{_DC_NS}date")
-                or item.findtext("dc:date")
                 or ""
             )
             snippet = _clean_text(item.findtext("description"))
@@ -136,6 +144,7 @@ def parse_feed_xml(
 
         if not title:
             continue
+        title = title[:MAX_TITLE_LEN]
 
         published_at = parse_feed_datetime(date_raw)
         missing = published_at is None
@@ -224,17 +233,30 @@ class ResilientFeedFetcher:
                 item_count=len(items),
                 failure="cooldown",
                 on_cooldown=True,
+                from_cache=True,
                 fetched_at=now,
             )
 
         if cached is not None and self._clock() - cached[0] < CACHE_TTL_S:
+            # from_cache marks these as NOT new observations: the caller
+            # must not archive them as fresh sightings, or story velocity
+            # would measure the polling cadence instead of news flow.
             return cached[1], FeedHealth(
-                feed_name=feed.name, ok=True, item_count=len(cached[1]), fetched_at=now
+                feed_name=feed.name,
+                ok=True,
+                item_count=len(cached[1]),
+                from_cache=True,
+                fetched_at=now,
             )
 
         try:
             response = self._get(feed.url)
             response.raise_for_status()
+            body = response.content
+            if len(body) > MAX_RESPONSE_BYTES:
+                raise ValueError(
+                    f"feed body {len(body)} bytes exceeds cap {MAX_RESPONSE_BYTES}"
+                )
             articles, unparseable = parse_feed_xml(response.text, feed, now)
         except Exception as exc:  # noqa: BLE001 — availability beats purity here
             self._record_failure(feed.name)
@@ -245,6 +267,7 @@ class ResilientFeedFetcher:
                 ok=False,
                 item_count=len(items),
                 failure=str(exc)[:200],
+                from_cache=bool(items),
                 fetched_at=now,
             )
 
