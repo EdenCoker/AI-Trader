@@ -81,6 +81,46 @@ safety gates as the CLI.
 9. **Phase 8 - Backtesting:** walk-forward validation and stress-period Monte Carlo.
 10. **Phase 9 - Build Loop:** Generate -> Self-Critique -> Test -> Backtest Gate -> Human PR.
 
+## News Intelligence Feed
+
+Phase 2 no longer requires hand-fed headlines. The `ai_trader.news` package
+pulls a consistent, scored news feed from two independent paths and turns it
+into `Signal` objects for the Final Reasoner:
+
+- **World Monitor digest** — the public finance digest of the open-source
+  [worldmonitor](https://github.com/koala73/worldmonitor) project (HTTP API
+  only; no AGPL code is vendored). Items arrive clustered and scored, with
+  per-item tickers and story lifecycle metadata.
+- **Direct RSS** — a curated registry of working finance feeds with a
+  per-feed circuit breaker (2 failures → 5-minute cooldown), TTL caching,
+  and honest per-feed health reporting. Publishers without public RSS
+  (Reuters, FT, Bloomberg) are reached via Google News site-search feeds,
+  and the originating outlet is lifted from the RSS `<source>` element.
+
+Every sighting is appended to a local archive stamped with the fetch time.
+`Signal.effective_date` derives from **first_seen_at** (when this system
+observed the story), never the publisher's claimed pubDate — the same
+no-lookahead rule as `disclosure_date` and `filing_date`, and it makes
+backtest replay deterministic (`stories(as_of)` reads only what was visible
+at `as_of`).
+
+Stories are deduplicated with feature-hashed title vectors (edit variants
+merge; entity-swapped headlines and disjoint-ticker stories stay separate),
+corroboration counts publisher families (Reuters World + Reuters US = one
+publisher), and each story carries two orthogonal scores: `importance`
+(severity/tier/corroboration/recency → `Signal.strength`) and `credibility`
+(tier/propaganda-risk/corroboration, state-media capped → `Signal.confidence`).
+
+```powershell
+ai-trader news pull                      # one acquisition pass, archives sightings
+ai-trader news stories --limit 15        # ranked stories from the archive window
+ai-trader news signal --ticker AAPL      # news Signals for a ticker (JSON)
+```
+
+Settings (`.env`): `AI_TRADER_NEWS_ENABLED`, `AI_TRADER_NEWS_WORLDMONITOR_ENABLED`,
+`AI_TRADER_WORLDMONITOR_BASE_URL`, `AI_TRADER_NEWS_VARIANT` (default `finance`),
+`AI_TRADER_NEWS_MAX_AGE_HOURS` (default 96), `AI_TRADER_NEWS_ARCHIVE_PATH`.
+
 ## Look-Ahead Rule
 
 Congressional trades use `disclosure_date` as the signal effective date. 13F holdings use `filing_date`, not `report_period`. Tests should fail if a component tries to score unavailable information.

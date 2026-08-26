@@ -35,6 +35,10 @@ from ai_trader.intelligence.models import NarrativeIntelligence
 from ai_trader.intelligence.narrative import NarrativeAnalyzer
 from ai_trader.intelligence.reasoner import FinalReasoner
 from ai_trader.intelligence.trade_plan import TradePlan
+from ai_trader.news import (
+    NewsIntelligenceEngine,
+    build_news_signals,
+)
 from ai_trader.providers.fear_greed import LiveFearGreedProvider
 from ai_trader.rag.trader_rag import format_retrieved, get_trader_rag
 from ai_trader.self_improvement.scheduler import NightlyReviewScheduler
@@ -52,10 +56,12 @@ backtest_app = typer.Typer(no_args_is_help=True)
 build_loop_app = typer.Typer(no_args_is_help=True)
 train_app = typer.Typer(no_args_is_help=True)
 model_app = typer.Typer(no_args_is_help=True)
+news_app = typer.Typer(no_args_is_help=True)
 app.add_typer(backtest_app, name="backtest")
 app.add_typer(build_loop_app, name="build-loop")
 app.add_typer(train_app, name="train")
 app.add_typer(model_app, name="model")
+app.add_typer(news_app, name="news")
 
 
 class _SecretRedactionFilter(logging.Filter):
@@ -146,6 +152,88 @@ def gui(
     """Launch the local browser GUI."""
 
     run_gui(host=host, port=port, open_browser=open_browser)
+
+
+@news_app.command("pull")
+def news_pull(
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Write the acquisition report JSON to this file."
+    ),
+) -> None:
+    """Run one news acquisition pass (worldmonitor digest + direct RSS) and archive sightings."""
+
+    _configure_logging()
+    engine = NewsIntelligenceEngine()
+    report = engine.collect()
+    json_str = report.model_dump_json(indent=2)
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json_str, encoding="utf-8")
+    else:
+        print(json_str)
+
+
+@news_app.command("stories")
+def news_stories(
+    limit: int = typer.Option(15, help="Maximum stories to print"),
+    ticker: str | None = typer.Option(None, help="Only stories naming this ticker"),
+    as_of: str | None = typer.Option(
+        None, help="Replay the archive as of this ISO timestamp (default: now)"
+    ),
+) -> None:
+    """Cluster and score archived news into ranked stories."""
+
+    _configure_logging()
+    from datetime import UTC, datetime
+
+    engine = NewsIntelligenceEngine()
+    as_of_dt = (
+        datetime.fromisoformat(as_of).astimezone(UTC) if as_of else datetime.now(UTC)
+    )
+    stories = engine.stories(as_of_dt)
+    if ticker:
+        wanted = ticker.upper()
+        stories = [story for story in stories if wanted in story.tickers]
+    for story in stories[:limit]:
+        rprint(
+            f"[{story.importance_score:>3}] {story.phase.value:<10} "
+            f"{story.classification.category:<18} "
+            f"pubs={story.publisher_count} cred={story.credibility_score:<3} "
+            f"{story.canonical_title[:90]}"
+        )
+    if not stories:
+        rprint("No stories in the archive window. Run `ai-trader news pull` first.")
+
+
+@news_app.command("signal")
+def news_signal(
+    ticker: str = typer.Option(..., help="Ticker symbol"),
+    as_of: str | None = typer.Option(
+        None, help="As-of ISO timestamp for no-lookahead replay (default: now)"
+    ),
+    output: Path | None = typer.Option(
+        None, "--output", "-o", help="Write signals JSON to this file"
+    ),
+) -> None:
+    """Build news Signals for a ticker from the archived story window."""
+
+    _configure_logging()
+    from datetime import UTC, datetime
+
+    engine = NewsIntelligenceEngine()
+    as_of_dt = (
+        datetime.fromisoformat(as_of).astimezone(UTC) if as_of else datetime.now(UTC)
+    )
+    stories = engine.stories(as_of_dt)
+    signals = build_news_signals(stories, ticker, as_of_dt)
+    payload = json.dumps(
+        [json.loads(signal.model_dump_json()) for signal in signals], indent=2
+    )
+    if output is not None:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(payload, encoding="utf-8")
+    else:
+        print(payload)
 
 
 @app.command("analyze-news")

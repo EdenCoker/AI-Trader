@@ -61,10 +61,15 @@ SEC_COMPANY_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SEC_COMPANY_TICKERS_EXCHANGE_URL = "https://www.sec.gov/files/company_tickers_exchange.json"
 FINRA_SHORT_INTEREST_URL = "https://api.finra.org/data/group/otcmarket/name/consolidatedShortInterest"
 FRED_OBSERVATIONS_URL = "https://api.stlouisfed.org/fred/series/observations"
+# NOTE: Reuters and FT killed their public RSS feeds years ago; the old
+# feeds.reuters.com / rss.ft.com URLs resolve to nothing and were silently
+# swallowed by the fetch's exception handler. Both publishers are now
+# reached via Google News site-search RSS (which stamps the originating
+# outlet per item), the same approach the ai_trader.news.feeds registry uses.
 RSS_FEEDS = [
-    "https://feeds.reuters.com/reuters/businessNews",
+    "https://news.google.com/rss/search?q=site%3Areuters.com+business+OR+markets+when%3A1d&hl=en-US&gl=US&ceid=US:en",
     "https://feeds.bbci.co.uk/news/business/rss.xml",
-    "https://rss.ft.com/rss/companies",
+    "https://news.google.com/rss/search?q=site%3Aft.com+when%3A1d&hl=en-US&gl=US&ceid=US:en",
 ]
 HOLDING_DAYS = 30  # forward return window for pnl_pct
 CYCLICAL_TICKERS = {
@@ -2266,14 +2271,15 @@ def _dominant_horizon_days(bundle: SignalBundle) -> int:
 # ---------------------------------------------------------------------------
 
 # Additional RSS feeds to cast a wider news net
+# Dow Jones moved MarketWatch/WSJ feeds to feeds.content.dowjones.io; the
+# feeds.marketwatch.com and feeds.a.dj.com hosts are dead.
 EXTRA_RSS_FEEDS = [
-    "https://feeds.marketwatch.com/marketwatch/topstories/",
+    "https://feeds.content.dowjones.io/public/rss/mw_topstories",
     "https://www.cnbc.com/id/100003114/device/rss/rss.html",
-    "https://feeds.a.dj.com/rss/RSSMarketsMain.xml",
-    "https://www.investing.com/rss/news.rss",
-    "https://seekingalpha.com/feed.xml",
-    "https://prnewswire.com/rss/news-releases-list.rss",
-    "https://www.businesswire.com/rss/home/?rss=G1",
+    "https://feeds.content.dowjones.io/public/rss/RSSMarketsMain",
+    "https://seekingalpha.com/market_currents.xml",
+    "https://www.prnewswire.com/rss/news-releases-list.rss",
+    "https://www.globenewswire.com/RssFeed/orgclass/1/feedTitle/GlobeNewswire%20-%20News%20about%20Public%20Companies",
 ]
 
 

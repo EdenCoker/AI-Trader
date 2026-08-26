@@ -163,6 +163,29 @@ class AppSettings(BaseModel):
     fear_greed_min_components: int = Field(
         default_factory=lambda: _env_int("AI_TRADER_FEAR_GREED_MIN_COMPONENTS", 4)
     )
+    news_enabled: bool = Field(
+        default_factory=lambda: _env_bool("AI_TRADER_NEWS_ENABLED", default=True)
+    )
+    news_worldmonitor_enabled: bool = Field(
+        default_factory=lambda: _env_bool("AI_TRADER_NEWS_WORLDMONITOR_ENABLED", default=True)
+    )
+    worldmonitor_base_url: str = Field(
+        default_factory=lambda: _env(
+            "AI_TRADER_WORLDMONITOR_BASE_URL", "https://api.worldmonitor.app"
+        )
+        or "https://api.worldmonitor.app"
+    )
+    news_variant: str = Field(
+        default_factory=lambda: _env("AI_TRADER_NEWS_VARIANT", "finance") or "finance"
+    )
+    news_max_age_hours: int = Field(
+        default_factory=lambda: _env_int("AI_TRADER_NEWS_MAX_AGE_HOURS", 96)
+    )
+    news_archive_path: Path = Field(
+        default_factory=lambda: Path(
+            _env("AI_TRADER_NEWS_ARCHIVE_PATH", "data/live/news_archive.jsonl") or ""
+        )
+    )
     openai_api_key: SecretStr | None = Field(default_factory=lambda: _secret("OPENAI_API_KEY"))
     openai_base_url: str = Field(
         default_factory=lambda: _env(
